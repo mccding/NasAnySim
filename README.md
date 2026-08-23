@@ -17,7 +17,7 @@
 
 ## Overview
 
-NasAnySim is a **self-hosted cellular gateway** that runs on an ARM Linux NAS (e.g. fnOS / OpenMediaVault / Debian). Plug in a **Quectel 4G module**, insert a SIM card, and the gateway turns the SIM into a private phone + SMS service reachable from any modern browser (iOS PWA, Android, desktop).
+NasAnySim is a **self-hosted cellular gateway** that runs on an ARM Linux NAS (e.g. fnOS / OpenMediaVault / Debian). Plug in a **DJI / BAIWANG 4G module** (Quectel-compatible AT), insert a SIM card, and the gateway turns the SIM into a private phone + SMS service reachable from any modern browser (iOS PWA, Android, desktop).
 
 **Features**
 
@@ -53,7 +53,7 @@ These upstream terms constrain how derivatives may be redistributed, so we distr
 ### Prerequisites
 
 - An **ARM64 Linux NAS** with Docker (tested on fnOS, `rk35xx` arm64)
-- A **Quectel 4G module** (QDC507 audio path verified) with a **SIM card** inserted, enumerated as `/dev/ttyUSB2`
+- A **DJI / BAIWANG 4G module** (QDC507 voice path verified; Quectel-compatible AT) with a **SIM card** inserted, enumerated as `/dev/ttyUSB2`
 - **ModemManager must be disabled** so the module's serial port is not claimed by the OS
 - A domain + HTTPS for the PWA (Caddy reverse proxy recommended), and a reachable TURN relay for voice
 
@@ -286,7 +286,7 @@ Upstream obligations (VoHive's "Changes and New Works License", libusb LGPL, MaV
 Currently the image is built for **ARM64** (rk35xx NAS). x86_64 builds may be added later.
 
 **Which modules are supported?**
-Quectel modules with the QDC507 voice path (EC25 family verified). The gateway auto-detects the AT port via `/dev/ttyUSB2`.
+DJI / BAIWANG modules with the QDC507 voice path (Quectel-compatible AT). The gateway auto-detects the module via USB AT (`discoverDJIUSBDevice`) or `/dev/ttyUSB2`.
 
 **Can I sell this?**
 No. The images are free for personal self-hosted use; commercial resale and redistribution are prohibited.

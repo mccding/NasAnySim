@@ -17,7 +17,7 @@
 
 ## 项目简介
 
-NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnOS / OpenMediaVault / Debian 均可）。插入**高通（Quectel）4G 模块**和一张 SIM 卡，网关就把这张 SIM 变成一台私人电话 + 短信服务，任何现代浏览器（iOS PWA、Android、桌面）都能访问。
+NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnOS / OpenMediaVault / Debian 均可）。插入**DJI/百旺（BAIWANG）4G 模块**（兼容高通 AT 指令）和一张 SIM 卡，网关就把这张 SIM 变成一台私人电话 + 短信服务，任何现代浏览器（iOS PWA、Android、桌面）都能访问。
 
 **功能特性**
 
