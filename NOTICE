@@ -1,0 +1,9 @@
+MacCellular product layer
+Copyright 2026 MacCellular contributors
+
+The mobile web product, remote communication architecture, media integration,
+storage, deployment and migration work developed in this repository are part of
+MacCellular.
+
+Earlier USB, AT, eSIM and modem-management foundations retain their original
+copyright and license notices. See LICENSE and THIRD_PARTY_NOTICES.md.

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NasAnySim">
+  <defs>
+    <linearGradient id="sim" x1="112" y1="118" x2="382" y2="414" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffb33b"/>
+      <stop offset="1" stop-color="#ff765e"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#071426"/>
+  <path d="M143 104h173l72 72v225c0 17-14 31-31 31H143c-17 0-31-14-31-31V135c0-17 14-31 31-31Z" fill="url(#sim)"/>
+  <path d="M316 104v57c0 8 7 15 15 15h57" fill="none" stroke="#ffd36b" stroke-width="18" stroke-linejoin="round"/>
+  <rect x="151" y="189" width="146" height="116" rx="24" fill="#071426" opacity=".92"/>
+  <path d="M200 189v116M248 189v116M151 247h146" fill="none" stroke="#ffad58" stroke-width="12"/>
+  <path d="M185 335c22 39 52 68 91 85 19 8 35 4 47-12l20-27c7-9 5-20-4-26l-37-26c-8-6-17-4-24 4l-11 13c-17-9-30-22-41-40l13-11c8-7 9-16 4-24l-25-37c-6-9-17-11-26-4l-27 21c-16 12-19 28-11 47 8 15 18 27 31 37Z" fill="#f6fff9"/>
+  <path d="M383 231c27 13 46 36 54 64M380 277c12 7 21 18 25 32" fill="none" stroke="#8ee7d3" stroke-width="20" stroke-linecap="round"/>
+</svg>
