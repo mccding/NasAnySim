@@ -52,7 +52,7 @@ TURN_SECRET="$(tr -d '\n' < turn-secret)"
 
 # TURN config (coturn.conf)
 mkdir -p coturn
-TURN_IP="$(ip -4 addr show 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d/ -f1 | grep -v '^127\.' | head -1)"
+TURN_IP="$(ip -4 addr show 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d/ -f1 | grep -v '^127\.' | head -1 || true)"
 # Public IP for the TURN relay candidate (external-ip). Prefer NASANY_PUBLIC_IP
 # (user-provided), else resolve from the domain (DDNS), else fall back to the LAN IP.
 if [[ -n "${NASANY_PUBLIC_IP:-}" ]]; then
@@ -151,6 +151,24 @@ EOF
 echo "OK: caddy/Caddyfile"
 
 # docker-compose.yaml
+# If another reverse proxy already listens on 7577 (or any public HTTPS port),
+# do NOT start the bundled caddy container — let the user's proxy handle it.
+# The script still writes ./caddy/Caddyfile so the user can copy the site block.
+CADDY_START="true"
+CADDY_PROFILE='["default"]'
+if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE ':(7577)\b'; then
+  CADDY_START="false"
+  CADDY_PROFILE='["optional"]'
+  echo "NOTE: port 7577 already in use (existing reverse proxy detected)."
+  echo "      Skipping the bundled caddy container. Add the site block from"
+  echo "      ./caddy/Caddyfile to your own proxy, or forward 7577 -> 127.0.0.1:7578."
+elif command -v netstat >/dev/null 2>&1 && netstat -tln 2>/dev/null | grep -qE ':(7577)\b'; then
+  CADDY_START="false"
+  CADDY_PROFILE='["optional"]'
+  echo "NOTE: port 7577 already in use (existing reverse proxy detected)."
+  echo "      Skipping the bundled caddy container. Add the site block from"
+  echo "      ./caddy/Caddyfile to your own proxy, or forward 7577 -> 127.0.0.1:7578."
+fi
 cat > docker-compose.yaml <<EOF
 services:
   nasany-sms:
@@ -226,6 +244,7 @@ services:
     container_name: nasany-caddy
     restart: unless-stopped
     network_mode: host
+    profiles: ${CADDY_PROFILE:-["default"]}
     volumes:
       - ./caddy:/etc/caddy
       - caddy_data:/data
