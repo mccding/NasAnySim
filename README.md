@@ -63,28 +63,31 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 ## 📦 快速部署 / Deployment
 
-### 需要准备什么？
+### 你只需要准备 3 样东西
 
-| 项目 | 要求 |
-|------|------|
-| 🖥 NAS | ARM64 Linux + Docker（fnOS / rk35xx 已验证） |
-| 📶 4G 模块 | DJI / 百旺模块，带 SIM 卡，枚举为 `/dev/ttyUSB2` |
-| ⚙️ 系统设置 | **必须禁用 ModemManager**（避免抢占串口） |
-| 🌐 网络 | 一个域名 + HTTPS（Caddy 反代）+ TURN 中继（语音必需） |
+| # | 你要做的 | 说明 |
+|---|---------|------|
+| 1 | 🖥 **一台 ARM64 NAS** | 已装 Docker（fnOS / rk35xx 已验证） |
+| 2 | 📶 **4G 模块 + SIM 卡** | 插在 NAS 上，枚举为 `/dev/ttyUSB2` |
+| 3 | 🌐 **一个域名** | 解析到你家宽公网 IP（DDNS 也行） |
 
-### 快速开始（推荐 · 一键部署）
+> ⚠️ **系统设置**：必须**禁用 ModemManager**（否则它抢占模块串口）。
 
-下载脚本，运行一行命令即可：
+### 一键部署（推荐）
+
+**不用改任何脚本**——下载脚本，把域名和邮箱填在命令里就行：
 
 ```bash
-# 下载部署脚本
+# 1. 下载部署脚本
 curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
 
-# 一键部署（域名 + 邮箱，邮箱用于自动申请 HTTPS 证书）
+# 2. 一键部署（把"你的域名"换成你的域名，"你的邮箱"用于自动申请 HTTPS 证书）
 bash deploy.sh 你的域名 your@email.com
 ```
 
-脚本会自动：创建数据目录、生成密钥、配置 Caddy 反代 + HTTPS 证书、启动网关和 TURN 中继。完成后访问：
+脚本会自动：创建数据目录、生成密钥、配置 Caddy 反代 + HTTPS 证书、启动网关和 TURN 中继。**唯一要你在路由器上做的**是转发两个端口（见下表）。
+
+完成后打开：
 
 ```
 https://你的域名:7577/remote/     # 默认账号 admin / admin
@@ -92,17 +95,23 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 
 > ⚠️ **首次登录后请立即修改默认密码。**
 
-### 端口与网络要求
-
-一键脚本会自动生成全部配置（Caddy 反代 + HTTPS + TURN 中继）。你只需要在**路由器上做好端口转发**：
+### 路由器需要转发的端口
 
 | 端口 | 协议 | 用途 | 必须转发 |
 |------|------|------|---------|
 | `7577` | TCP | HTTPS PWA 访问 | ✅ 必须 |
 | `3478` | UDP | TURN 语音中继 | ✅ 必须 |
-| `5349` | TCP | TURN TLS（脚本检测到证书时启用） | 视情况 |
+| `5349` | TCP | TURN TLS（检测到证书时启用） | 视情况 |
 
-> 💡 如果你已有 Caddy/Nginx 等反代，脚本会在 `./caddy/Caddyfile` 生成好站点配置，直接复用即可。
+### 常见情况
+
+**已有 Caddy/Nginx 反代？** 无需任何操作——脚本会自动检测到 7577 被占用，跳过自带 Caddy，你的反代不受影响。生成的 `./caddy/Caddyfile` 里有现成的站点配置，复制到你的反代即可复用。
+
+**模块不在 `/dev/ttyUSB2`？** 用环境变量指定，也不用改脚本：
+
+```bash
+NASANY_TTY=/dev/ttyACM0 bash deploy.sh 你的域名 your@email.com
+```
 
 ---
 

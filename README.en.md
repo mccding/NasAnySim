@@ -63,28 +63,31 @@ Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## 📦 Deployment
 
-### Prerequisites
+### You only need 3 things
 
-| Item | Requirement |
-|------|-------------|
-| 🖥 NAS | ARM64 Linux + Docker (fnOS / rk35xx verified) |
-| 📶 4G module | DJI / BAIWANG module with SIM, enumerated as `/dev/ttyUSB2` |
-| ⚙️ System | **ModemManager must be disabled** |
-| 🌐 Network | A domain + HTTPS (Caddy) + TURN relay (required for voice) |
+| # | What you do | Notes |
+|---|-------------|-------|
+| 1 | 🖥 **An ARM64 NAS** | with Docker installed (fnOS / rk35xx verified) |
+| 2 | 📶 **A 4G module + SIM** | plugged into the NAS, enumerated as `/dev/ttyUSB2` |
+| 3 | 🌐 **A domain** | pointing to your home public IP (DDNS works too) |
 
-### Quick start (recommended · one-command deploy)
+> ⚠️ **System setup**: **ModemManager must be disabled** (otherwise it steals the module serial port).
 
-Download the script and run a single command:
+### One-command deploy (recommended)
+
+**No script editing needed** — download the script and put your domain + email in the command:
 
 ```bash
-# Download the deploy script
+# 1. Download the deploy script
 curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
 
-# One-command deploy (domain + email; email auto-issues the HTTPS cert)
+# 2. One-command deploy (replace "your-domain.example.com"; email auto-issues the HTTPS cert)
 bash deploy.sh your-domain.example.com you@example.com
 ```
 
-The script automatically: creates data dirs, generates secrets, configures the Caddy reverse proxy + HTTPS cert, and starts the gateway and TURN relay. When done, open:
+The script automatically: creates data dirs, generates secrets, configures the Caddy reverse proxy + HTTPS cert, and starts the gateway and TURN relay. **The only thing you do on your router** is forward two ports (see table below).
+
+When done, open:
 
 ```
 https://your-domain:7577/remote/     # default login admin / admin
@@ -92,9 +95,7 @@ https://your-domain:7577/remote/     # default login admin / admin
 
 > ⚠️ **Change the default password immediately after first login.**
 
-### Ports & network requirements
-
-The one-command script generates everything (Caddy reverse proxy + HTTPS + TURN relay). You only need to forward these ports on your router:
+### Ports to forward on your router
 
 | Port | Protocol | Purpose | Forward? |
 |------|----------|---------|----------|
@@ -102,7 +103,15 @@ The one-command script generates everything (Caddy reverse proxy + HTTPS + TURN 
 | `3478` | UDP | TURN voice relay | ✅ required |
 | `5349` | TCP | TURN TLS (enabled when certs detected) | optional |
 
-> 💡 Already running Caddy/Nginx? The script writes the site config to `./caddy/Caddyfile` for you to reuse.
+### Common cases
+
+**Already running Caddy/Nginx?** Nothing to do — the script auto-detects that 7577 is in use, skips its own Caddy, and your proxy is untouched. A ready-made site config is written to `./caddy/Caddyfile` for you to copy into your proxy.
+
+**Module not on `/dev/ttyUSB2`?** Use an environment variable — still no script editing:
+
+```bash
+NASANY_TTY=/dev/ttyACM0 bash deploy.sh your-domain.example.com you@example.com
+```
 
 ## 🔌 Ports
 
