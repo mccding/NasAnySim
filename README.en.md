@@ -119,7 +119,7 @@ Save the content below as `compose.yaml`:
 ```yaml
 services:
   nasany-sms:
-    image: ghcr.io/your-account/nasany-sms:latest   # ARM64 image
+    image: mccdingding/nasany-sms:latest   # ARM64 image
     container_name: nasany-sms
     restart: unless-stopped
     network_mode: host

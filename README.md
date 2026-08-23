@@ -119,7 +119,7 @@ chmod 600 data/auth/session-secret
 ```yaml
 services:
   nasany-sms:
-    image: ghcr.io/你的账号/nasany-sms:latest   # ARM64 镜像
+    image: mccdingding/nasany-sms:latest   # ARM64 镜像
     container_name: nasany-sms
     restart: unless-stopped
     network_mode: host
