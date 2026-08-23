@@ -12,21 +12,6 @@
 
 </div>
 
-## 🚀 30-second setup
-
-Plug in the 4G module, run these two commands — done:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
-bash deploy.sh your-domain.example.com you@example.com
-```
-
-Open `https://your-domain:7577/remote/` (default login `admin` / `admin`) and you have a private phone + SMS service.
-
-> Prerequisites: ARM64 NAS + Docker + 4G module (`/dev/ttyUSB2`). See the [Deployment](#-deployment) section for details.
-
----
-
 ## ✨ Overview
 
 NasAnySim is a **self-hosted cellular gateway** that runs on an ARM Linux NAS (fnOS / OpenMediaVault / Debian all work).

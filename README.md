@@ -12,21 +12,6 @@
 
 </div>
 
-## 🚀 30 秒上手
-
-插上 4G 模块，跑这两行命令，完事：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
-bash deploy.sh 你的域名 your@email.com
-```
-
-搞定后打开 `https://你的域名:7577/remote/`（默认账号 `admin` / `admin`），一个私人电话 + 短信服务就有了。
-
-> 前提：ARM64 NAS + Docker + 4G 模块（`/dev/ttyUSB2`）。详见[部署说明](#-快速部署--deployment)。
-
----
-
 ## ✨ 项目简介 / Overview
 
 NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnOS / OpenMediaVault / Debian 均可）。
