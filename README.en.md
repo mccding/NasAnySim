@@ -185,6 +185,80 @@ docker compose up -d
 https://your-domain:7577/remote/
 ```
 
+### Reverse proxy (pick one)
+
+The gateway listens on loopback only (`127.0.0.1:7578`). You need an **HTTPS reverse proxy** in front of it for public access and login protection. Choose the option that fits your environment:
+
+**Option A · You already run Caddy / Nginx**
+
+Add one site block to your existing config (Caddy shown; other proxies work the same):
+
+```caddy
+https://your-domain:7577 {
+    tls /etc/ssl/fullchain.pem /etc/ssl/privkey.pem
+
+    # Login/logout reachable without a session
+    handle /remote/auth/* {
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+
+    # PWA icons/manifest reachable without a session (iOS "Add to Home Screen")
+    handle /remote/*.png { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/*.svg { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/manifest.webmanifest { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+
+    # Everything else requires login
+    handle {
+        forward_auth 127.0.0.1:7578 {
+            uri /api/remote/v1/auth/check
+            header_up Host localhost
+        }
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+}
+```
+
+> 💡 No cert file? Replace `tls` with `tls your@email.com` and Caddy will issue a Let's Encrypt certificate automatically.
+
+**Option B · No reverse proxy yet (greenfield)**
+
+Add a dedicated Caddy container that serves only NasAnySim — `docker compose up` handles HTTPS + auth for you:
+
+```yaml
+  caddy:
+    image: caddy:2-alpine
+    container_name: nasany-caddy
+    restart: unless-stopped
+    network_mode: host        # shares the network with nasany-sms → can reach 127.0.0.1:7578
+    volumes:
+      - ./caddy:/etc/caddy
+      - caddy_data:/data
+    command: caddy run --config /etc/caddy/Caddyfile
+```
+
+Then create `./caddy/Caddyfile` (listens on 7577):
+
+```caddy
+https://your-domain:7577 {
+    tls your@email.com    # auto-issued Let's Encrypt cert
+    handle /remote/auth/* {
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+    handle /remote/*.png { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/*.svg { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/manifest.webmanifest { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle {
+        forward_auth 127.0.0.1:7578 {
+            uri /api/remote/v1/auth/check
+            header_up Host localhost
+        }
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+}
+```
+
+> 💡 `tls your@email.com` auto-issues a Let's Encrypt certificate (your domain must resolve to the NAS public IP). The `caddy_data` volume persists certificates.
+
 ---
 
 ## 🔌 Ports

@@ -185,6 +185,80 @@ docker compose up -d
 https://你的域名:7577/remote/
 ```
 
+### 反向代理（两种方案选一）
+
+网关本身只监听本机（`127.0.0.1:7578`），**需要一个 HTTPS 反向代理**对外提供访问和登录保护。按你已有的环境二选一：
+
+**方案 A · 已有 Caddy / Nginx 等反代**
+
+只需在现有配置里加一个站点（这里以 Caddy 为例，其他反代原理相同）：
+
+```caddy
+https://你的域名:7577 {
+    tls /etc/ssl/fullchain.pem /etc/ssl/privkey.pem
+
+    # 登录/登出无需会话
+    handle /remote/auth/* {
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+
+    # PWA 图标/清单无需会话（iOS "添加到主屏幕"需要）
+    handle /remote/*.png { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/*.svg { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/manifest.webmanifest { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+
+    # 其余页面/API 需要登录
+    handle {
+        forward_auth 127.0.0.1:7578 {
+            uri /api/remote/v1/auth/check
+            header_up Host localhost
+        }
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+}
+```
+
+> 💡 没有现成证书？可以把 `tls` 换成 `tls your@email.com`，Caddy 会自动申请 Let's Encrypt 证书。
+
+**方案 B · 没有反代（全新部署）**
+
+在 `compose.yaml` 里加一个只服务 NasAnySim 的 Caddy 容器，`docker compose up` 自动搞定 HTTPS + 认证：
+
+```yaml
+  caddy:
+    image: caddy:2-alpine
+    container_name: nasany-caddy
+    restart: unless-stopped
+    network_mode: host        # 与 nasany-sms 同网，能访问 127.0.0.1:7578
+    volumes:
+      - ./caddy:/etc/caddy
+      - caddy_data:/data
+    command: caddy run --config /etc/caddy/Caddyfile
+```
+
+然后创建 `./caddy/Caddyfile`（注意监听 7577）：
+
+```caddy
+https://你的域名:7577 {
+    tls your@email.com    # 自动申请证书
+    handle /remote/auth/* {
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+    handle /remote/*.png { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/*.svg { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/manifest.webmanifest { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle {
+        forward_auth 127.0.0.1:7578 {
+            uri /api/remote/v1/auth/check
+            header_up Host localhost
+        }
+        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+    }
+}
+```
+
+> 💡 `tls your@email.com` 让 Caddy 自动申请 Let's Encrypt 证书（需域名解析到本机公网 IP）。`caddy_data` 卷持久化证书。
+
 ---
 
 ## 🔌 端口映射 / Ports
