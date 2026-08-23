@@ -26,7 +26,7 @@ Reachable from any modern browser (iOS PWA, Android, desktop) — no need to car
 
 <div align="center">
 
-![NasAnySim architecture](brand/architecture.svg)
+![NasAnySim architecture](brand/architecture-en.svg)
 
 *How it works: phone → NAS gateway → 4G module & SIM*
 
