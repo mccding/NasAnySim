@@ -24,6 +24,14 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 任何现代浏览器（iOS PWA、Android、桌面）都能访问，无需随身携带第二台手机。
 
+<div align="center">
+
+![NasAnySim 架构](brand/architecture.svg)
+
+*架构总览：手机 → NAS 网关 → 4G 模块与 SIM*
+
+</div>
+
 ---
 
 ## 🚀 功能特性 / Features

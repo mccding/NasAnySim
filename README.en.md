@@ -24,6 +24,14 @@ Plug in a **DJI / BAIWANG 4G module** (Quectel-compatible AT) with a SIM card, a
 
 Reachable from any modern browser (iOS PWA, Android, desktop) — no need to carry a second phone.
 
+<div align="center">
+
+![NasAnySim architecture](brand/architecture.svg)
+
+*How it works: phone → NAS gateway → 4G module & SIM*
+
+</div>
+
 ---
 
 ## 🚀 Features
