@@ -12,7 +12,7 @@
 
 </div>
 
-## ✨ 项目简介 / Overview
+## ✨ 项目简介
 
 NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnOS / OpenMediaVault / Debian 均可）。
 
@@ -32,7 +32,7 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 ---
 
-## 🚀 功能特性 / Features
+## 🚀 功能特性
 
 | 功能 | 说明 |
 |------|------|
@@ -45,7 +45,7 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 ---
 
-## ⚖️ 许可证与分发 / Licensing & Distribution
+## ⚖️ 许可证与分发
 
 > **闭源 · 仅镜像分发 · 免费自用 · 禁止商用**
 
@@ -59,7 +59,7 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 ---
 
-## 📦 快速部署 / Deployment
+## 📦 快速部署
 
 ### 你只需要准备 3 样东西
 
@@ -121,7 +121,7 @@ bash deploy.sh 你的域名 your@email.com /dev/ttyACM0
 
 ---
 
-## 🔌 端口映射 / Ports
+## 🔌 端口映射
 
 | 端口 | 绑定 | 服务 | 用途 |
 |------|------|------|------|
@@ -133,7 +133,7 @@ bash deploy.sh 你的域名 your@email.com /dev/ttyACM0
 
 ---
 
-## 🔐 登录认证 / Authentication
+## 🔐 登录认证
 
 ### 首次登录
 
@@ -161,7 +161,7 @@ docker exec nasany-sms /usr/local/bin/djonehub-macos \
 
 ---
 
-## ⚙️ 模块配置 / Module Setup
+## ⚙️ 模块配置
 
 连接模块后，网关**自动完成模块配置**，无需手动敲 AT 命令：
 
@@ -175,7 +175,7 @@ docker exec nasany-sms /usr/local/bin/djonehub-macos \
 
 ---
 
-## 📱 手机安装（iOS PWA）
+## 📱 手机安装
 
 1. Safari 打开 `https://你的域名:7577/remote/`
 2. 登录
@@ -184,7 +184,7 @@ docker exec nasany-sms /usr/local/bin/djonehub-macos \
 
 ---
 
-## ❓ 常见问题 / FAQ
+## ❓ 常见问题
 
 <details>
 <summary><b>为什么闭源？</b></summary>
@@ -212,7 +212,7 @@ DJI / 百旺模块（QDC507 语音路径，兼容高通 AT）。网关通过 USB
 
 ---
 
-## 🙏 致谢 / Acknowledgements
+## 🙏 致谢
 
 - **VoHive / DJOneHub**（[github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)）— 早期 USB/AT、eSIM 与模块管理基础。`Required Notice: Copyright iniwex5`
 - **MaVo**（[github.com/moluncn/mavo](https://github.com/moluncn/mavo)，MIT）— UAC 探测与 QDC507 音频路径参考
@@ -223,13 +223,13 @@ DJI / 百旺模块（QDC507 语音路径，兼容高通 AT）。网关通过 USB
 
 ---
 
-## 💖 支持本项目 / Support
+## 💖 支持本项目
 
 如果本项目对你有帮助，欢迎支持它的开发：
 
 <div align="center">
 
-![支持 / Support](brand/support-qr.png)
+![支持本项目](brand/support-qr.png)
 
 *微信扫码支持 · Scan to support*
 
