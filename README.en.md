@@ -107,10 +107,18 @@ https://your-domain:7577/remote/     # default login admin / admin
 
 **Already running Caddy/Nginx?** Nothing to do — the script auto-detects that 7577 is in use, skips its own Caddy, and your proxy is untouched. A ready-made site config is written to `./caddy/Caddyfile` for you to copy into your proxy.
 
-**Module not on `/dev/ttyUSB2`?** Use an environment variable — still no script editing:
+**Module not on `/dev/ttyUSB2`?** (Most users can ignore this.)
+
+Only needed if the script prints `WARN: /dev/ttyUSB2 not found`. First check which serial port your module is on:
 
 ```bash
-NASANY_TTY=/dev/ttyACM0 bash deploy.sh your-domain.example.com you@example.com
+ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+```
+
+If it shows `/dev/ttyUSB2` (the default), nothing to do. If it's something else (e.g. `/dev/ttyACM0`), tell the script:
+
+```bash
+bash deploy.sh your-domain.example.com you@example.com /dev/ttyACM0
 ```
 
 ## 🔌 Ports

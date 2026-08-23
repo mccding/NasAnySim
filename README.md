@@ -107,10 +107,18 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 
 **已有 Caddy/Nginx 反代？** 无需任何操作——脚本会自动检测到 7577 被占用，跳过自带 Caddy，你的反代不受影响。生成的 `./caddy/Caddyfile` 里有现成的站点配置，复制到你的反代即可复用。
 
-**模块不在 `/dev/ttyUSB2`？** 用环境变量指定，也不用改脚本：
+**模块不在 `/dev/ttyUSB2`？**（大多数用户不需要管这条）
+
+只有当你运行脚本时看到 `WARN: /dev/ttyUSB2 not found`（模块串口没找到）才需要处理。先查一下你的模块实际在哪个串口：
 
 ```bash
-NASANY_TTY=/dev/ttyACM0 bash deploy.sh 你的域名 your@email.com
+ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+```
+
+看到的是 `/dev/ttyUSB2`（默认）就不用管；如果是别的（比如 `/dev/ttyACM0`），把串口告诉脚本：
+
+```bash
+bash deploy.sh 你的域名 your@email.com /dev/ttyACM0
 ```
 
 ---

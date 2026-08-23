@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================
 # NasAnySim one-click deploy
-# Usage: bash deploy.sh [domain] [email] [--dry-run]
+# Usage: bash deploy.sh [domain] [email] [serial-port] [--dry-run]
 #   bash deploy.sh nasany.example.com you@example.com
+#   bash deploy.sh nasany.example.com you@example.com /dev/ttyACM0
 #   bash deploy.sh nasany.example.com --dry-run  (config only)
 #
 # Configurable via environment variables (override CLI args):
 #   NASANY_DOMAIN   your public domain (also used as TURN realm)
 #   NASANY_EMAIL    email for Let's Encrypt auto cert
 #   NASANY_TTY      module serial port (default /dev/ttyUSB2)
+#   NASANY_PUBLIC_IP  your public IP (auto-detected via DDNS if unset)
 # ============================================================
 set -euo pipefail
 
@@ -20,9 +22,10 @@ fi
 
 DOMAIN="${1:-${NASANY_DOMAIN:-}}"
 EMAIL="${2:-${NASANY_EMAIL:-}}"
+TTY_ARG="${3:-}"
 DRY_RUN=0
 if [[ "$DOMAIN" == "--dry-run" ]]; then DOMAIN="${NASANY_DOMAIN:-}"; DRY_RUN=1; fi
-if [[ "${3:-}" == "--dry-run" || "${2:-}" == "--dry-run" ]]; then DRY_RUN=1; EMAIL=""; fi
+if [[ "${4:-}" == "--dry-run" || "${3:-}" == "--dry-run" ]]; then DRY_RUN=1; EMAIL=""; fi
 if [[ -z "$DOMAIN" ]]; then
   echo "ERROR: usage: bash deploy.sh <domain> [email] [--dry-run]"
   echo "  example: bash deploy.sh nasany.example.com you@example.com"
@@ -36,10 +39,10 @@ if [[ "$DRY_RUN" -eq 0 ]] && ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-# Module serial port (override via NASANY_TTY or edit below)
-TTY="${NASANY_TTY:-/dev/ttyUSB2}"
+# Module serial port: 3rd CLI arg > NASANY_TTY env > default /dev/ttyUSB2
+TTY="${TTY_ARG:-${NASANY_TTY:-/dev/ttyUSB2}}"
 if [[ ! -e "$TTY" ]]; then
-  echo "WARN: $TTY (4G module serial) not found. Set NASANY_TTY if different."
+  echo "WARN: $TTY (4G module serial) not found. Pass the module serial as the 3rd argument or set NASANY_TTY."
 fi
 
 # TURN secret
