@@ -1,19 +1,32 @@
 #!/usr/bin/env bash
 # ============================================================
 # NasAnySim one-click deploy
-# Usage: bash deploy.sh <domain> [email] [--dry-run]
+# Usage: bash deploy.sh [domain] [email] [--dry-run]
 #   bash deploy.sh nasany.example.com you@example.com
 #   bash deploy.sh nasany.example.com --dry-run  (config only)
+#
+# Configurable via environment variables (override CLI args):
+#   NASANY_DOMAIN   your public domain (also used as TURN realm)
+#   NASANY_EMAIL    email for Let's Encrypt auto cert
+#   NASANY_TTY      module serial port (default /dev/ttyUSB2)
 # ============================================================
 set -euo pipefail
 
-DOMAIN="${1:-}"
-EMAIL="${2:-}"
+# Load optional .env (for Docker/Compose-style configuration)
+# .env can set NASANY_DOMAIN, NASANY_EMAIL, NASANY_TTY
+if [[ -f .env ]]; then
+  set -a; source .env; set +a
+fi
+
+DOMAIN="${1:-${NASANY_DOMAIN:-}}"
+EMAIL="${2:-${NASANY_EMAIL:-}}"
 DRY_RUN=0
+if [[ "$DOMAIN" == "--dry-run" ]]; then DOMAIN="${NASANY_DOMAIN:-}"; DRY_RUN=1; fi
 if [[ "${3:-}" == "--dry-run" || "${2:-}" == "--dry-run" ]]; then DRY_RUN=1; EMAIL=""; fi
 if [[ -z "$DOMAIN" ]]; then
   echo "ERROR: usage: bash deploy.sh <domain> [email] [--dry-run]"
   echo "  example: bash deploy.sh nasany.example.com you@example.com"
+  echo "  or set NASANY_DOMAIN env var"
   exit 1
 fi
 
@@ -23,10 +36,10 @@ if [[ "$DRY_RUN" -eq 0 ]] && ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-# Module serial port (override here if different)
-TTY="/dev/ttyUSB2"
+# Module serial port (override via NASANY_TTY or edit below)
+TTY="${NASANY_TTY:-/dev/ttyUSB2}"
 if [[ ! -e "$TTY" ]]; then
-  echo "WARN: $TTY (4G module serial) not found. Edit TTY in this script if different."
+  echo "WARN: $TTY (4G module serial) not found. Set NASANY_TTY if different."
 fi
 
 # TURN secret
@@ -39,7 +52,7 @@ TURN_SECRET="$(tr -d '\n' < turn-secret)"
 
 # TURN config (coturn.conf)
 mkdir -p coturn
-TURN_IP="$(ip -4 addr show 2>/dev/null | grep -oP 'inet \K[0-9.]+' | grep -v '^127\.' | head -1)"
+TURN_IP="$(ip -4 addr show 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d/ -f1 | grep -v '^127\.' | head -1)"
 TURN_EXTERNAL="${TURN_IP:-127.0.0.1}"
 cat > coturn/turnserver.conf <<EOF
 realm=${DOMAIN}
