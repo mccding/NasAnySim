@@ -53,21 +53,69 @@ TURN_SECRET="$(tr -d '\n' < turn-secret)"
 # TURN config (coturn.conf)
 mkdir -p coturn
 TURN_IP="$(ip -4 addr show 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d/ -f1 | grep -v '^127\.' | head -1)"
-TURN_EXTERNAL="${TURN_IP:-127.0.0.1}"
+# Public IP for the TURN relay candidate (external-ip). Prefer NASANY_PUBLIC_IP
+# (user-provided), else resolve from the domain (DDNS), else fall back to the LAN IP.
+if [[ -n "${NASANY_PUBLIC_IP:-}" ]]; then
+  PUBLIC_IP="$NASANY_PUBLIC_IP"
+elif command -v getent >/dev/null 2>&1 && getent hosts "$DOMAIN" >/dev/null 2>&1; then
+  PUBLIC_IP="$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1)"
+else
+  PUBLIC_IP=""
+fi
+PUBLIC_IP="${PUBLIC_IP:-$TURN_IP}"
+# Optional TLS: if the user supplies fullchain.pem + privkey.pem in ./coturn,
+# enable the TLS listener on 5349 (needs UDP+TCP 5349 port-forwarded).
+TLS_BLOCK=""
+if [[ -f coturn/fullchain.pem && -f coturn/privkey.pem ]]; then
+  TLS_BLOCK="tls-listening-port=5349
+cert=/etc/coturn/fullchain.pem
+pkey=/etc/coturn/privkey.pem"
+  echo "NOTE: TLS 5349 enabled (found ./coturn/fullchain.pem + privkey.pem)"
+else
+  echo "NOTE: no TLS certs in ./coturn — TURN over UDP 3478 only (no-tls)."
+fi
 cat > coturn/turnserver.conf <<EOF
 realm=${DOMAIN}
 server-name=${DOMAIN}
 listening-ip=${TURN_IP:-0.0.0.0}
+relay-ip=${TURN_IP:-0.0.0.0}
+external-ip=${PUBLIC_IP}/${TURN_IP}
 listening-port=3478
+${TLS_BLOCK}
+no-dtls
+min-port=49160
+max-port=49167
 fingerprint
 use-auth-secret
 static-auth-secret=${TURN_SECRET}
-min-port=49160
-max-port=49167
-no-dtls
-no-tls
+secure-stun
+user-quota=4
+total-quota=8
+max-bps=256000
+bps-capacity=2000000
+stale-nonce=600
+max-allocate-lifetime=600
+channel-lifetime=600
+permission-lifetime=300
+allocation-default-address-family=ipv4
+no-multicast-peers
+no-rfc5780
+no-tcp-relay
+no-cli
+denied-peer-ip=0.0.0.0-0.255.255.255
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.0.0.0-192.0.0.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=198.18.0.0-198.19.255.255
+denied-peer-ip=224.0.0.0-255.255.255.255
+log-file=stdout
+simple-log
 EOF
-echo "OK: coturn/turnserver.conf"
+echo "OK: coturn/turnserver.conf (external-ip=${PUBLIC_IP})"
 
 # Session secret
 mkdir -p data/auth
