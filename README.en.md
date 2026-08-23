@@ -10,9 +10,22 @@
 ![Platform](https://img.shields.io/badge/Platform-ARM64%20Linux-green.svg)
 ![Version](https://img.shields.io/badge/Version-1.0.0--rc.4-lightgrey.svg)
 
----
-
 </div>
+
+## 🚀 30-second setup
+
+Plug in the 4G module, run these two commands — done:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
+bash deploy.sh your-domain.example.com you@example.com
+```
+
+Open `https://your-domain:7577/remote/` (default login `admin` / `admin`) and you have a private phone + SMS service.
+
+> Prerequisites: ARM64 NAS + Docker + 4G module (`/dev/ttyUSB2`). See the [Deployment](#-deployment) section for details.
+
+---
 
 ## ✨ Overview
 

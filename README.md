@@ -10,9 +10,22 @@
 ![Platform](https://img.shields.io/badge/Platform-ARM64%20Linux-green.svg)
 ![Version](https://img.shields.io/badge/Version-1.0.0--rc.4-lightgrey.svg)
 
----
-
 </div>
+
+## 🚀 30 秒上手
+
+插上 4G 模块，跑这两行命令，完事：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
+bash deploy.sh 你的域名 your@email.com
+```
+
+搞定后打开 `https://你的域名:7577/remote/`（默认账号 `admin` / `admin`），一个私人电话 + 短信服务就有了。
+
+> 前提：ARM64 NAS + Docker + 4G 模块（`/dev/ttyUSB2`）。详见[部署说明](#-快速部署--deployment)。
+
+---
 
 ## ✨ 项目简介 / Overview
 
