@@ -72,6 +72,30 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 | ⚙️ 系统设置 | **必须禁用 ModemManager**（避免抢占串口） |
 | 🌐 网络 | 一个域名 + HTTPS（Caddy 反代）+ TURN 中继（语音必需） |
 
+### 快速开始（推荐 · 一键部署）
+
+下载脚本，运行一行命令即可：
+
+```bash
+# 下载部署脚本
+curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
+
+# 一键部署（域名 + 邮箱，邮箱用于自动申请 HTTPS 证书）
+bash deploy.sh 你的域名 your@email.com
+```
+
+脚本会自动：创建数据目录、生成密钥、配置 Caddy 反代 + HTTPS 证书、启动网关和 TURN 中继。完成后访问：
+
+```
+https://你的域名:7577/remote/     # 默认账号 admin / admin
+```
+
+> ⚠️ **首次登录后请立即修改默认密码。**
+
+### 手动部署（可选）
+
+如果想自己控制每一步，按下面的步骤来：
+
 ### 第一步：创建工作目录
 
 ```bash

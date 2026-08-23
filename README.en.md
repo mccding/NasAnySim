@@ -72,6 +72,30 @@ Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 | ⚙️ System | **ModemManager must be disabled** |
 | 🌐 Network | A domain + HTTPS (Caddy) + TURN relay (required for voice) |
 
+### Quick start (recommended · one-command deploy)
+
+Download the script and run a single command:
+
+```bash
+# Download the deploy script
+curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
+
+# One-command deploy (domain + email; email auto-issues the HTTPS cert)
+bash deploy.sh your-domain.example.com you@example.com
+```
+
+The script automatically: creates data dirs, generates secrets, configures the Caddy reverse proxy + HTTPS cert, and starts the gateway and TURN relay. When done, open:
+
+```
+https://your-domain:7577/remote/     # default login admin / admin
+```
+
+> ⚠️ **Change the default password immediately after first login.**
+
+### Manual deploy (optional)
+
+Prefer full control? Follow the steps below:
+
 ### Step 1: Create the working directory
 
 ```bash
