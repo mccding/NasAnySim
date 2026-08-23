@@ -1,96 +1,102 @@
-<p align="center">
-  <img src="docs/brand/icon.svg" width="112" alt="NasAnySim icon">
-</p>
+<div align="center">
 
-<h1 align="center">NasAnySim</h1>
+# 📡 NasAnySim
 
-<p align="center"><strong>Turn a cellular module plugged into your NAS into a private phone & SMS gateway — reachable from any browser.</strong></p>
+**把插在 NAS 上的 4G 模块，变成你的私人电话与短信网关**
 
-<p align="center">
-  <a href="README.zh-CN.md">简体中文</a> ·
-  <a href="#deployment">Deployment</a> ·
-  <a href="#authentication">Authentication</a> ·
-  <a href="#licensing">Licensing</a>
-</p>
+[简体中文](README.md) · [English](README.en.md)
+
+![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)
+![Platform](https://img.shields.io/badge/Platform-ARM64%20Linux-green.svg)
+![Version](https://img.shields.io/badge/Version-1.0.0--rc.4-lightgrey.svg)
 
 ---
 
-## Overview
+</div>
 
-NasAnySim is a **self-hosted cellular gateway** that runs on an ARM Linux NAS (e.g. fnOS / OpenMediaVault / Debian). Plug in a **DJI / BAIWANG 4G module** (Quectel-compatible AT), insert a SIM card, and the gateway turns the SIM into a private phone + SMS service reachable from any modern browser (iOS PWA, Android, desktop).
+## ✨ 项目简介 / Overview
 
-**Features**
+NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnOS / OpenMediaVault / Debian 均可）。
 
-- 📱 **SMS send / receive** — full conversation UI, durable store, sync across devices
-- 📞 **Voice calls** — inbound & outbound over WebRTC, with TURN relay for NAT traversal
-- 🔔 **Background notifications** — incoming call & SMS Web Push even when the PWA is closed
-- 🎙 **Call recording** — recorded on the NAS, playable/deletable from the PWA
-- 🔐 **Persistent cookie auth** — works behind Caddy / any forward_auth proxy
-- 🐳 **Single-container ARM64 image** — `docker compose up` on an ARM NAS
+插入 **DJI / 百旺（BAIWANG）4G 模块**（兼容高通 AT 指令）和一张 SIM 卡，网关就把这张 SIM 变成：
 
----
+> 📱 **私人电话** · 💬 **短信收发** · 🔔 **来电/短信通知** · 🎙 **通话录音**
 
-## Licensing & Distribution Model
-
-> **Closed-source, image-only distribution.**
-
-This project ships as **prebuilt ARM64 Docker images only**. The source is **not published**, and the images are **free for personal use but not for commercial resale or redistribution**.
-
-The decision is driven by upstream obligations:
-
-- The early USB/AT/eSIM/modem-management foundation derives from **VoHive / DJOneHub** ([github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)) under its own **"Changes and New Works License"** — `Required Notice: Copyright iniwex5`.
-- The UAC probing and QDC507 audio path reference **MaVo** ([github.com/moluncn/mavo](https://github.com/moluncn/mavo), MIT) and **Celldock** and similar public implementations.
-- Runtime dependencies include **libusb** (LGPL-2.1) and **Pion WebRTC** (MIT).
-
-These upstream terms constrain how derivatives may be redistributed, so we distribute binaries rather than source. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full retained notices.
-
-**Terms of use:** free for personal / self-hosted use; **commercial resale, rebranding-for-sale, and redistribution of the images or their contents are prohibited.**
+任何现代浏览器（iOS PWA、Android、桌面）都能访问，无需随身携带第二台手机。
 
 ---
 
-## Deployment
+## 🚀 功能特性 / Features
 
-### Prerequisites
+| 功能 | 说明 |
+|------|------|
+| 📱 短信收发 | 完整会话界面，持久化存储，多端同步 |
+| 📞 语音通话 | WebRTC 呼入/呼出，TURN 中继穿透 NAT |
+| 🔔 后台通知 | 来电/短信 Web Push，关闭 PWA 也能收到 |
+| 🎙 通话录音 | NAS 本地录制，PWA 内播放/删除 |
+| 🔐 安全认证 | 持久化 Cookie 认证，兼容 Caddy 反代 |
+| 🐳 一键部署 | 单容器 ARM64 镜像，`docker compose up` 即用 |
 
-- An **ARM64 Linux NAS** with Docker (tested on fnOS, `rk35xx` arm64)
-- A **DJI / BAIWANG 4G module** (QDC507 voice path verified; Quectel-compatible AT) with a **SIM card** inserted, enumerated as `/dev/ttyUSB2`
-- **ModemManager must be disabled** so the module's serial port is not claimed by the OS
-- A domain + HTTPS for the PWA (Caddy reverse proxy recommended), and a reachable TURN relay for voice
+---
 
-### Quick start
+## ⚖️ 许可证与分发 / Licensing & Distribution
+
+> **闭源 · 仅镜像分发 · 免费自用 · 禁止商用**
+
+本项目以**预编译的 ARM64 Docker 镜像**形式发布。**源码不公开**；镜像**仅供个人免费使用，禁止商用倒卖或再分发**。
+
+闭源原因：项目早期 USB/AT/eSIM/模块管理基础衍生自 **VoHive/DJOneHub**（[github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)），受其 **"Changes and New Works License"** 约束；UAC 探测与 QDC507 音频路径参考了 **MaVo**（[github.com/moluncn/mavo](https://github.com/moluncn/mavo)，MIT）等公开项目。这些上游协议限制了衍生作品的再分发方式。
+
+完整声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+**使用条款：** 免费供个人自托管使用；**禁止商用倒卖、禁止改皮转卖、禁止再分发镜像及其内容。**
+
+---
+
+## 📦 快速部署 / Deployment
+
+### 需要准备什么？
+
+| 项目 | 要求 |
+|------|------|
+| 🖥 NAS | ARM64 Linux + Docker（fnOS / rk35xx 已验证） |
+| 📶 4G 模块 | DJI / 百旺模块，带 SIM 卡，枚举为 `/dev/ttyUSB2` |
+| ⚙️ 系统设置 | **必须禁用 ModemManager**（避免抢占串口） |
+| 🌐 网络 | 一个域名 + HTTPS（Caddy 反代）+ TURN 中继（语音必需） |
+
+### 第一步：创建工作目录
 
 ```bash
-# 1. Create the working directory
 mkdir -p /mnt/docker-compose/maccellular && cd /mnt/docker-compose/maccellular
-
-# 2. Save the compose file below as compose.yaml
-
-# 3. Generate a session secret (at least 32 random bytes)
-openssl rand -base64 48 > data/auth/session-secret
-chmod 600 data/auth/session-secret
-
-# 4. Start the gateway
-docker compose up -d
-
-# 5. Open the PWA
-#    https://your-domain:7577/remote/
 ```
 
-### docker-compose.yaml
+### 第二步：生成会话密钥
+
+```bash
+openssl rand -base64 48 > data/auth/session-secret
+chmod 600 data/auth/session-secret
+```
+
+### 第三步：保存 compose 配置
+
+把下面的内容保存为 `compose.yaml`（点击右侧 📋 复制）：
+
+<details>
+<summary>📄 点击展开完整 docker-compose.yaml</summary>
 
 ```yaml
 services:
   nasany-sms:
-    image: ghcr.io/your-account/nasany-sms:latest   # ARM64 image
+    image: ghcr.io/你的账号/nasany-sms:latest   # ARM64 镜像
     container_name: nasany-sms
     restart: unless-stopped
     network_mode: host
     devices:
-      - /dev/ttyUSB2:/dev/ttyUSB2       # Quectel module AT port
-      - /dev/snd:/dev/snd               # ALSA PCM for module voice (UAC)
+      - /dev/ttyUSB2:/dev/ttyUSB2       # 4G 模块 AT 串口
+      - /dev/snd:/dev/snd               # 模块语音(UAC)的 ALSA PCM
     volumes:
-      - ./data:/var/lib/maccellular     # persistent SMS / auth / recordings
-      - ./turn-secret:/run/secrets/turn-secret:ro   # coturn REST secret
+      - ./data:/var/lib/maccellular     # 持久化:短信/认证/录音
+      - ./turn-secret:/run/secrets/turn-secret:ro
     cap_drop:
       - ALL
     security_opt:
@@ -105,7 +111,6 @@ services:
       - /var/lib/maccellular
       - -call-history-store
       - /var/lib/maccellular/call-history.json
-      # Remote PWA gateway
       - -remote-listen
       - 127.0.0.1:7578
       - -remote-host
@@ -114,7 +119,6 @@ services:
       - -remote-allow-loopback
       - -remote-recordings-dir
       - /var/lib/maccellular/call-recordings
-      # Cookie auth
       - -remote-cookie-auth
       - -remote-cookie-auth-password-hash-file
       - /var/lib/maccellular/auth/password-hash
@@ -124,26 +128,23 @@ services:
       - /var/lib/maccellular/auth/initialized
       - -remote-cookie-auth-secret-file
       - /var/lib/maccellular/auth/session-secret
-      # TURN relay for voice
       - -remote-media-turn-host
-      - your-domain.example.com
+      - 你的域名.example.com
       - -remote-media-turn-secret-file
       - /run/secrets/turn-secret
       - -remote-media-turn-udp-port
       - "3478"
       - -remote-incoming-answer
       - -remote-rescue-hangup
-      # Web Push background notifications
       - -remote-push
       - -remote-push-vapid-private-key-file
       - /var/lib/maccellular/vapid-private-key
       - -remote-push-vapid-subject
-      - mailto:you@example.com
+      - mailto:你@example.com
       - -remote-push-subscriptions-file
       - /var/lib/maccellular/push/subscriptions.json
       - -web-console
 
-  # TURN relay for WebRTC voice (required for calls outside your LAN)
   nasany-turn:
     image: coturn/coturn:latest
     container_name: nasany-turn
@@ -151,7 +152,7 @@ services:
     network_mode: host
     command:
       - -n
-      - --realm=your-domain.example.com
+      - --realm=你的域名.example.com
       - --listening-port=3478
       - --tls-listening-port=5349
       - --fingerprint
@@ -162,153 +163,132 @@ services:
       - --pkey=/etc/coturn/tls/privkey.pem
 ```
 
-### Reverse proxy (Caddy)
+</details>
 
-The PWA and API live behind Caddy with a forward-auth login gate:
-
-```caddy
-https://your-domain:7577 {
-    tls /etc/ssl/fullchain.pem /etc/ssl/privkey.pem
-
-    # Login/logout reachable without a session
-    handle /remote/auth/* {
-        reverse_proxy 127.0.0.1:7578 {
-            header_up Host localhost
-        }
-    }
-
-    # PWA icons reachable without a session (iOS "Add to Home Screen")
-    handle /remote/*.png {
-        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
-    }
-    handle /remote/*.svg {
-        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
-    }
-    handle /remote/manifest.webmanifest {
-        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
-    }
-
-    # Everything else requires a signed session cookie
-    handle {
-        forward_auth 127.0.0.1:7578 {
-            uri /api/remote/v1/auth/check
-            header_up Host localhost
-        }
-        reverse_proxy 127.0.0.1:7578 {
-            header_up Host localhost
-        }
-    }
-}
-```
-
----
-
-## Ports
-
-| Port | Binding | Service | Purpose |
-|------|---------|---------|---------|
-| `7577` | public (Caddy) | HTTPS PWA | `https://your-domain:7577/remote/` |
-| `7578` | 127.0.0.1 (nasany-sms) | Remote gateway | reverse-proxy target, not public |
-| `7576` | 127.0.0.1 (nasany-sms) | Local console | loopback diagnostics |
-| `3478` | public (nasany-turn) | TURN UDP/TCP | WebRTC voice relay (required for calls) |
-| `5349` | public (nasany-turn) | TURN TLS | WebRTC voice relay (encrypted) |
-
----
-
-## Authentication
-
-### First login
-
-A fresh deployment seeds the default credential **`admin` / `admin`**.
-
-> ⚠️ **Immediately change the password after your first login.** Do not leave the default credential in place on a public-facing deployment.
-
-### Change the password (terminal)
-
-SSH into the NAS and run the binary inside the container:
+### 第四步：启动
 
 ```bash
-# Reset the login password
-docker exec nasany-sms /usr/local/bin/djonehub-macos \
-  -remote-reset-password "YOUR_NEW_PASSWORD" \
-  -remote-reset-password-file /var/lib/maccellular/auth/password-hash
-
-# Reset the login username
-docker exec nasany-sms /usr/local/bin/djonehub-macos \
-  -remote-reset-username "YOUR_NEW_USERNAME" \
-  -remote-reset-username-file /var/lib/maccellular/auth/username
-
-# Factory re-init: username=admin, password=<value>, next login is first-run
-docker exec nasany-sms /usr/local/bin/djonehub-macos \
-  -remote-init-credentials "TEMPORARY_PASSWORD" \
-  -remote-cookie-auth-password-hash-file /var/lib/maccellular/auth/password-hash \
-  -remote-cookie-auth-username-file /var/lib/maccellular/auth/username \
-  -remote-cookie-auth-initialized-file /var/lib/maccellular/auth/initialized
+docker compose up -d
 ```
 
-> The reset command writes the new hash to disk and exits; **restart the container** (`docker compose restart nasany-sms`) for the running process to pick it up.
+### 第五步：打开 PWA
+
+```
+https://你的域名:7577/remote/
+```
 
 ---
 
-## Module configuration
+## 🔌 端口映射 / Ports
 
-On connect, the gateway **automatically configures the module** (no manual AT setup):
-
-- **CLCC mode 0 only** — only real voice calls are tracked; mode-1 data sessions are ignored
-- **ModemManager disabled** — the module's serial port is exclusively owned by the gateway
-- **USB composition query** — `AT+QCFG="USBCFG"` to verify the voice-capable USB profile
-- **PCM / DAI voice routing** — `AT+QPCMV` / `AT+QDAI` verified so module audio reaches the host
-- **UAC + QDC507 audio** (MaVo-referenced) — module-side voice runtime pushed via ADB after reboot; `qdc507` kernel modules loaded; PCM bridge established; voice route auto-started on answered calls
-
-**Required module environment:**
-1. Module enumerated as `/dev/ttyUSB2`
-2. ModemManager disabled
-3. SIM inserted and registered to the network
-4. TURN relay reachable for call audio
+| 端口 | 绑定 | 服务 | 用途 |
+|------|------|------|------|
+| `7577` | 公网 (Caddy) | HTTPS PWA | `https://你的域名:7577/remote/` |
+| `7578` | 127.0.0.1 | 远程网关 | 反代目标，不对外 |
+| `7576` | 127.0.0.1 | 本地控制台 | 本机诊断 |
+| `3478` | 公网 (TURN) | TURN UDP/TCP | WebRTC 语音中继（通话必需） |
+| `5349` | 公网 (TURN) | TURN TLS | WebRTC 语音中继（加密） |
 
 ---
 
-## Mobile install (iOS PWA)
+## 🔐 登录认证 / Authentication
 
-1. Open `https://your-domain:7577/remote/` in Safari
-2. Log in
-3. Share → **Add to Home Screen**
-4. The app installs as a standalone PWA with full-screen UI
+### 首次登录
 
----
+新部署的默认凭据为 **`admin` / `admin`**。
 
-## FAQ
+> ⚠️ **首次登录后请立即修改密码**，切勿在公网部署上保留默认凭据。
 
-**Why is it closed-source?**
-Upstream obligations (VoHive's "Changes and New Works License", libusb LGPL, MaVo reference) constrain how derivatives may be redistributed; we distribute images only. See [Licensing](#licensing--distribution-model).
+### 修改密码（终端）
 
-**Does it work on x86_64?**
-Currently the image is built for **ARM64** (rk35xx NAS). x86_64 builds may be added later.
+SSH 到 NAS 后执行：
 
-**Which modules are supported?**
-DJI / BAIWANG modules with the QDC507 voice path (Quectel-compatible AT). The gateway auto-detects the module via USB AT (`discoverDJIUSBDevice`) or `/dev/ttyUSB2`.
+```bash
+# 重置登录密码
+docker exec nasany-sms /usr/local/bin/djonehub-macos \
+  -remote-reset-password "你的新密码" \
+  -remote-reset-password-file /var/lib/maccellular/auth/password-hash
 
-**Can I sell this?**
-No. The images are free for personal self-hosted use; commercial resale and redistribution are prohibited.
+# 重置登录用户名
+docker exec nasany-sms /usr/local/bin/djonehub-macos \
+  -remote-reset-username "你的新用户名" \
+  -remote-reset-username-file /var/lib/maccellular/auth/username
+```
 
----
-
-## Acknowledgements
-
-- **VoHive / DJOneHub** ([github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)) — early USB/AT, eSIM, and modem-management foundation. `Required Notice: Copyright iniwex5`
-- **MaVo** ([github.com/moluncn/mavo](https://github.com/moluncn/mavo), MIT) — UAC probing and QDC507 audio-path reference
-- **Celldock** and similar public projects — technical reference
-- **Pion WebRTC** (MIT), **libusb** (LGPL-2.1), **coturn** — runtime dependencies
-
-Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+> ⚠️ 重置后**重启容器**（`docker compose restart nasany-sms`）让新凭据生效。
 
 ---
 
-## Support
+## ⚙️ 模块配置 / Module Setup
 
-If you find this project useful, consider supporting its development:
+连接模块后，网关**自动完成模块配置**，无需手动敲 AT 命令：
+
+- ✅ **仅 CLCC mode 0** — 只跟踪真实语音通话
+- ✅ **禁用 ModemManager** — 模块串口由网关独占
+- ✅ **USB 组合查询** — `AT+QCFG="USBCFG"` 验证语音 USB profile
+- ✅ **PCM/DAI 语音路由** — `AT+QPCMV` / `AT+QDAI` 校验音频链路
+- ✅ **UAC + QDC507 音频** — 重启后 ADB 推送模块侧运行时，自动建立语音路由
+
+**模块侧必备：** 模块枚举为 `/dev/ttyUSB2` · ModemManager 已禁用 · SIM 已注册 · TURN 中继可达
+
+---
+
+## 📱 手机安装（iOS PWA）
+
+1. Safari 打开 `https://你的域名:7577/remote/`
+2. 登录
+3. 分享 → **添加到主屏幕**
+4. 以独立 PWA 全屏运行
+
+---
+
+## ❓ 常见问题 / FAQ
+
+<details>
+<summary><b>为什么闭源？</b></summary>
+
+上游协议约束（VoHive 的 "Changes and New Works License"、libusb LGPL、MaVo 参考）限制了衍生作品的再分发方式；我们只分发镜像。
+</details>
+
+<details>
+<summary><b>支持 x86_64 吗？</b></summary>
+
+目前镜像为 **ARM64**（rk35xx NAS）。x86_64 构建后续可能加入。
+</details>
+
+<details>
+<summary><b>支持哪些模块？</b></summary>
+
+DJI / 百旺模块（QDC507 语音路径，兼容高通 AT）。网关通过 USB AT 或 `/dev/ttyUSB2` 自动识别。
+</details>
+
+<details>
+<summary><b>可以拿去卖吗？</b></summary>
+
+不可以。镜像仅供个人自托管免费使用，禁止商用与再分发。
+</details>
+
+---
+
+## 🙏 致谢 / Acknowledgements
+
+- **VoHive / DJOneHub**（[github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)）— 早期 USB/AT、eSIM 与模块管理基础。`Required Notice: Copyright iniwex5`
+- **MaVo**（[github.com/moluncn/mavo](https://github.com/moluncn/mavo)，MIT）— UAC 探测与 QDC507 音频路径参考
+- **Celldock** 等公开项目 — 技术参考
+- **Pion WebRTC**（MIT）、**libusb**（LGPL-2.1）、**coturn** — 运行时依赖
+
+完整声明：[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+
+---
+
+## 💖 支持本项目 / Support
+
+如果本项目对你有帮助，欢迎支持它的开发：
 
 <div align="center">
-  <img src="docs/brand/support-qr.png" width="180" alt="Support / donate QR">
-  <p><em>Support this project</em></p>
+
+![支持 / Support](brand/support-qr.png)
+
+*微信扫码支持 · Scan to support*
+
 </div>
