@@ -35,6 +35,26 @@ if [[ ! -f turn-secret ]]; then
   openssl rand -base64 32 > turn-secret
   chmod 600 turn-secret
 fi
+TURN_SECRET="$(tr -d '\n' < turn-secret)"
+
+# TURN config (coturn.conf)
+mkdir -p coturn
+TURN_IP="$(ip -4 addr show 2>/dev/null | grep -oP 'inet \K[0-9.]+' | grep -v '^127\.' | head -1)"
+TURN_EXTERNAL="${TURN_IP:-127.0.0.1}"
+cat > coturn/turnserver.conf <<EOF
+realm=${DOMAIN}
+server-name=${DOMAIN}
+listening-ip=${TURN_IP:-0.0.0.0}
+listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=${TURN_SECRET}
+min-port=49160
+max-port=49167
+no-dtls
+no-tls
+EOF
+echo "OK: coturn/turnserver.conf"
 
 # Session secret
 mkdir -p data/auth
@@ -134,15 +154,11 @@ services:
     container_name: nasany-turn
     restart: unless-stopped
     network_mode: host
-    command:
-      - -n
-      - --realm=${DOMAIN}
-      - --listening-port=3478
-      - --tls-listening-port=5349
-      - --fingerprint
-      - --lt-cred-mech
-      - --use-auth-secret
-      - --static-auth-secret-file=/run/secrets/turn-secret
+    volumes:
+      - ./coturn:/etc/coturn:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+    cap_add:
+      - NET_BIND_SERVICE
 
   caddy:
     image: caddy:2-alpine
