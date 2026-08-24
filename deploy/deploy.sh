@@ -151,7 +151,10 @@ if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
     ACME="$([ -f ~/.acme.sh/acme.sh ] && echo ~/.acme.sh/acme.sh || command -v acme.sh)"
     export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
     echo "TLS: running acme.sh --dns dns_duckdns -d $DOMAIN ..."
-    "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force 2>&1 | tail -2
+    # acme.sh may exit non-zero (rate limits, network) — never let that trip
+    # set -e. Validate by checking whether the cert files appeared.
+    "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force >/tmp/acme-issue.log 2>&1 || true
+    tail -3 /tmp/acme-issue.log
     if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer && -f ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key ]]; then
       cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
       cp ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key caddy/privkey.pem
@@ -175,16 +178,36 @@ if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
     if [[ "$DRY_RUN" -eq 0 ]]; then
       read -r -p "Install acme.sh now? (y/N): " ACME_INSTALL
       if [[ "${ACME_INSTALL,,}" == "y" ]]; then
-        curl -fsSL https://get.acme.sh | sh 2>&1 | tail -1
-        ACME="$HOME/.acme.sh/acme.sh"
+        echo "TLS: downloading and installing acme.sh ..."
+        # NB: acme.sh's installer can return non-zero on some platforms even
+        # after doing the install (e.g. it tells you to re-login). Never let
+        # that trip set -e; validate by checking the binary exists instead.
+        if curl -fsSL https://get.acme.sh | sh >/tmp/acme-install.log 2>&1; then
+          echo "    installer finished (exit 0)"
+        else
+          echo "    installer returned non-zero (see /tmp/acme-install.log), continuing if acme.sh exists..."
+        fi
+        if [[ -x "$HOME/.acme.sh/acme.sh" ]]; then
+          ACME="$HOME/.acme.sh/acme.sh"
+          echo "TLS: acme.sh installed at $ACME"
+        else
+          echo "ERROR: acme.sh install did not produce $HOME/.acme.sh/acme.sh"
+          echo "  See /tmp/acme-install.log. You can install it manually:"
+          echo "    curl https://get.acme.sh | sh"
+          echo "  then re-run deploy.sh."
+          exit 1
+        fi
         export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
-        "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force 2>&1 | tail -2
-        if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer ]]; then
+        "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force >/tmp/acme-issue.log 2>&1 || true
+        tail -3 /tmp/acme-issue.log
+        if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer && -f ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key ]]; then
           cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
           cp ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key caddy/privkey.pem
           chmod 600 caddy/privkey.pem
           TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
           echo "TLS: real cert issued -> ./caddy/fullchain.pem"
+        else
+          echo "WARN: acme.sh did not produce a cert for $DOMAIN — continuing without TLS cert."
         fi
       fi
     fi
