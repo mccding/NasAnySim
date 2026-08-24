@@ -23,6 +23,7 @@ fi
 DOMAIN="${1:-${NASANY_DOMAIN:-}}"
 EMAIL="${2:-${NASANY_EMAIL:-}}"
 TTY_ARG="${3:-}"
+if [[ "$TTY_ARG" == "--dry-run" ]]; then TTY_ARG=""; fi
 DRY_RUN=0
 if [[ "$DOMAIN" == "--dry-run" ]]; then DOMAIN="${NASANY_DOMAIN:-}"; DRY_RUN=1; fi
 if [[ "${4:-}" == "--dry-run" || "${3:-}" == "--dry-run" ]]; then DRY_RUN=1; EMAIL=""; fi
@@ -126,6 +127,19 @@ if [[ ! -f data/auth/session-secret ]]; then
   echo "GEN: data/auth/session-secret"
   openssl rand -base64 48 > data/auth/session-secret
   chmod 600 data/auth/session-secret
+fi
+
+# VAPID private key for Web Push (-remote-push). Without it the gateway refuses
+# to start (log.Fatal), so generate a P-256 key on first run.
+# Format: 43-char base64url (no padding), P-256 private key scalar.
+if [[ ! -f data/vapid-private-key ]]; then
+  echo "GEN: data/vapid-private-key"
+  openssl ecparam -genkey -name prime256v1 -noout 2>/dev/null \
+    | openssl ec -outform DER 2>/dev/null \
+    | tail -c 32 \
+    | openssl base64 -A 2>/dev/null \
+    | tr '+/' '-_' | tr -d '=' > data/vapid-private-key
+  chmod 600 data/vapid-private-key
 fi
 
 echo "DOMAIN: $DOMAIN"
