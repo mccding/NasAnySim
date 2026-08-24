@@ -139,6 +139,16 @@ NASANY_DUCKDNS_TOKEN=your-token
 bash deploy.sh mynas.duckdns.org your@email.com
 ```
 
+**Fill-in reference (match each part)**:
+
+| In the command | What to put | Example |
+|---------------|-------------|---------|
+| `NASANY_DUCKDNS_TOKEN=` | Your token from duckdns.org (a UUID-like string, e.g. `3d4507b3-5b2a-...`) | `NASANY_DUCKDNS_TOKEN=3d4507b3...` |
+| `mynas.duckdns.org` | Your **full domain** (keep the `.duckdns.org`) | `mynas.duckdns.org` |
+| `your@email.com` | Your email (used to request the HTTPS cert) | `you@example.com` |
+
+> **Where to find the token**: after signing in at https://www.duckdns.org, the "Token" field on the page is your token (~36 chars, shaped `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). Copy it and paste it into the command or the `.env` file.
+
 Both are identical in effect. The script will automatically:
 - 🎫 Issue a **real HTTPS cert** via acme.sh + DuckDNS DNS-01 (no port 80 needed, works on home broadband)
 - 🔄 Generate `duckdns-update.sh` (calls the DuckDNS API to update your public IP)

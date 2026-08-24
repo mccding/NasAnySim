@@ -139,6 +139,16 @@ NASANY_DUCKDNS_TOKEN=你的token
 bash deploy.sh mynas.duckdns.org your@email.com
 ```
 
+**执行时到底填什么（对照着填）**：
+
+| 命令里的位置 | 填什么 | 例子 |
+|------------|--------|------|
+| `NASANY_DUCKDNS_TOKEN=` | 你在 duckdns.org 页面看到的 token（一串字符，像 `3d4507b3-5b2a-45e3-...`） | `NASANY_DUCKDNS_TOKEN=3d4507b3...` |
+| `mynas.duckdns.org` | 你注册的**完整域名**（注意要带 `.duckdns.org`） | `mynas.duckdns.org` |
+| `your@email.com` | 你自己的邮箱（用于申请 HTTPS 证书） | `you@example.com` |
+
+> **token 在哪看**：登录 https://www.duckdns.org 后，页面 "Token" 一栏就是（一串 36 位左右的字符，形如 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`）。复制它，粘贴到命令里或 `.env` 文件里。
+
 两种方式效果完全一样。脚本会自动：
 - 🎫 用 **acme.sh + DuckDNS DNS-01** 申请**真 HTTPS 证书**（不依赖 80 端口，家庭宽带可用）
 - 🔄 生成 `duckdns-update.sh`（调用 DuckDNS 官方接口更新你的公网 IP）
