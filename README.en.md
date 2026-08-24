@@ -212,6 +212,7 @@ No. The images are free for personal self-hosted use; commercial resale and redi
 
 ## 🙏 Acknowledgements
 
+- **MacCellular** ([github.com/yuexiazhuojiu-byte/MacCellular](https://github.com/yuexiazhuojiu-byte/MacCellular)) — the project this one descends from; the first open-source Mac SMS + phone gateway. Thanks to the author for the great work
 - **VoHive / DJOneHub** ([github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)) — early USB/AT, eSIM, and modem-management foundation. `Required Notice: Copyright iniwex5`
 - **MaVo** ([github.com/moluncn/mavo](https://github.com/moluncn/mavo), MIT) — UAC probing and QDC507 audio-path reference
 - **Celldock** and similar public projects — technical reference

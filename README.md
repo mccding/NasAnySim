@@ -214,6 +214,7 @@ DJI / 百旺模块（QDC507 语音路径，兼容高通 AT）。网关通过 USB
 
 ## 🙏 致谢
 
+- **MacCellular**（[github.com/yuexiazhuojiu-byte/MacCellular](https://github.com/yuexiazhuojiu-byte/MacCellular)）— 本项目的前身，最早的 Mac 端 SMS + 电话网关开源实现，感谢作者的出色工作
 - **VoHive / DJOneHub**（[github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)）— 早期 USB/AT、eSIM 与模块管理基础。`Required Notice: Copyright iniwex5`
 - **MaVo**（[github.com/moluncn/mavo](https://github.com/moluncn/mavo)，MIT）— UAC 探测与 QDC507 音频路径参考
 - **Celldock** 等公开项目 — 技术参考
