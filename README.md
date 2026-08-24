@@ -146,6 +146,10 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 | `49160-49167` | UDP | TURN 音频数据（relay 端口段） | ✅ 必须 |
 | `5349` | TCP | TURN TLS（检测到证书时启用） | 视情况 |
 
+> ⚠️ **部署后必须在主路由器上把以上公网端口转发到运行 NasAnySim 的主机 LAN IP。**
+> 通话至少需要 `7577/TCP`、`3478/UDP` 和 `49160-49167/UDP`；漏掉 TURN relay 端口段时，网页可能能打开但通话会报“无法连接公网中继”。
+> `7576`、`7578` 只绑定 `127.0.0.1`，**不要**转发到公网。
+
 ### 常见情况
 
 **已有 Caddy/Nginx 反代？** 无需任何操作——脚本会自动检测到 7577 被占用，跳过自带 Caddy，你的反代不受影响。生成的 `./caddy/Caddyfile` 里有现成的站点配置，复制到你的反代即可复用。
@@ -216,6 +220,8 @@ docker exec nasany-sms /usr/local/bin/djonehub-macos \
 - ✅ **USB 组合查询** — `AT+QCFG="USBCFG"` 验证语音 USB profile
 - ✅ **PCM/DAI 语音路由** — `AT+QPCMV` / `AT+QDAI` 校验音频链路
 - ✅ **UAC + QDC507 音频** — 重启后 ADB 推送模块侧运行时，自动建立语音路由
+
+**首次接入同款模块：** 无论 NAS 是 ARM64 还是 x86_64，模块都必须完成一次 ADB 解锁并处于 **ADB+UAC USB profile**，这样网关才能在模块重启后自动推送 QDC507 语音运行时。已经完成初始化的模块不需要每次部署重复写入；模块恢复出厂或 USB profile 丢失时，部署向导会重新检查并引导初始化。
 
 **模块侧必备：** 模块枚举为 `/dev/ttyUSB2` · ModemManager 已禁用 · SIM 已注册 · TURN 中继可达
 

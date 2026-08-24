@@ -146,6 +146,10 @@ https://your-domain:7577/remote/     # default login admin / admin
 | `49160-49167` | UDP | TURN audio data (relay port range) | ✅ required |
 | `5349` | TCP | TURN TLS (enabled when certs detected) | optional |
 
+> ⚠️ **After deployment, forward the public ports above on your router to the LAN IP of the host running NasAnySim.**
+> Calls require at least `7577/TCP`, `3478/UDP`, and `49160-49167/UDP`; if the TURN relay range is missing, the web page may load while calls fail with “cannot reach public relay”.
+> `7576` and `7578` are loopback-only and must **not** be forwarded to the Internet.
+
 ### Common cases
 
 **Already running Caddy/Nginx?** Nothing to do — the script auto-detects that 7577 is in use, skips its own Caddy, and your proxy is untouched. A ready-made site config is written to `./caddy/Caddyfile` for you to copy into your proxy.
@@ -214,6 +218,8 @@ On connect, the gateway **configures the module automatically** — no manual AT
 - ✅ **USB composition query** — `AT+QCFG="USBCFG"` verifies the voice-capable profile
 - ✅ **PCM/DAI voice routing** — `AT+QPCMV` / `AT+QDAI` verified
 - ✅ **UAC + QDC507 audio** — module-side runtime pushed via ADB after reboot; voice route auto-started
+
+**First use with a matching module:** regardless of whether the NAS is ARM64 or x86_64, the module must be initialized once with ADB unlocked and the **ADB+UAC USB profile** enabled. This lets the gateway push the QDC507 voice runtime automatically after a module reboot. An initialized module does not need the write step on every deployment; the setup flow re-checks it if the module was factory-reset or its USB profile was lost.
 
 **Required module environment:** enumerated as `/dev/ttyUSB2` · ModemManager disabled · SIM registered · TURN relay reachable
 
