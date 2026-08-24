@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-MacCellular is an independently designed self-hosted phone product built in this
+NasAnySim is an independently designed self-hosted phone product built in this
 repository. It also contains or depends on earlier and third-party work whose
 copyright and licenses remain unchanged.
 
@@ -19,7 +19,7 @@ The macOS UAC probing and QDC507 audio-host integration use ideas and host-side
 source adapted from [MaVo](https://github.com/moluncn/mavo), under the MIT
 License. The retained license is [`licenses/MaVo-LICENSE`](licenses/MaVo-LICENSE).
 
-MacCellular does not include or redistribute MaVo's module-side kernel modules or
+NasAnySim does not include or redistribute MaVo's module-side kernel modules or
 ARM helper. Users who prepare a compatible module-side runtime obtain it from
 its original source under that source's terms.
 
