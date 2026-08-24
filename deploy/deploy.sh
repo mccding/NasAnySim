@@ -167,24 +167,25 @@ https://${DOMAIN}:7577 {
 EOF
 echo "OK: caddy/Caddyfile"
 
-# docker-compose.yaml
-# If another reverse proxy already listens on 7577 (or any public HTTPS port),
-# do NOT start the bundled caddy container — let the user's proxy handle it.
-# The script still writes ./caddy/Caddyfile so the user can copy the site block.
+# Caddy is ALWAYS part of the default deploy so a fresh user gets HTTPS + auth
+# out of the box. If port 7577 is already occupied we warn, but we do NOT
+# silently drop caddy — the container will try to bind and fail; the warning
+# explains how to integrate with an existing proxy. Set NASANY_SKIP_CADDY=1 to
+# explicitly exclude it.
 CADDY_START="true"
 CADDY_PROFILE='["default"]'
-if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE ':(7577)\b'; then
+if [[ "${NASANY_SKIP_CADDY:-0}" == "1" ]]; then
   CADDY_START="false"
   CADDY_PROFILE='["optional"]'
-  echo "NOTE: port 7577 already in use (existing reverse proxy detected)."
-  echo "      Skipping the bundled caddy container. Add the site block from"
-  echo "      ./caddy/Caddyfile to your own proxy, or forward 7577 -> 127.0.0.1:7578."
+  echo "NOTE: NASANY_SKIP_CADDY=1 — skipping the bundled caddy container."
+elif command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE ':(7577)\b'; then
+  echo "WARN: port 7577 already in use. The bundled caddy container may not be"
+  echo "      able to bind. If you run your own reverse proxy, integrate the"
+  echo "      site block from ./caddy/Caddyfile and set NASANY_SKIP_CADDY=1."
 elif command -v netstat >/dev/null 2>&1 && netstat -tln 2>/dev/null | grep -qE ':(7577)\b'; then
-  CADDY_START="false"
-  CADDY_PROFILE='["optional"]'
-  echo "NOTE: port 7577 already in use (existing reverse proxy detected)."
-  echo "      Skipping the bundled caddy container. Add the site block from"
-  echo "      ./caddy/Caddyfile to your own proxy, or forward 7577 -> 127.0.0.1:7578."
+  echo "WARN: port 7577 already in use. The bundled caddy container may not be"
+  echo "      able to bind. If you run your own reverse proxy, integrate the"
+  echo "      site block from ./caddy/Caddyfile and set NASANY_SKIP_CADDY=1."
 fi
 # Detect host architecture → choose the matching image tag.
 # arm64 (most NAS) → :latest (arm64); x86_64 → :amd64.
