@@ -132,8 +132,18 @@ if [[ -f caddy/fullchain.pem && -f caddy/privkey.pem ]]; then
 fi
 
 # (2) DuckDNS token → DNS-01. This works on EVERY network (home broadband with
-# port 80 blocked, cloud, whatever), so when a token is present we prefer it.
-# It never touches port 80, so it can't be tripped up by a firewall/ISP block.
+# port 80 blocked, cloud, whatever). If a token is already provided (env/.env)
+# use it; otherwise the script simply ASKS for it — the user only ever runs
+# `bash deploy.sh domain email` and pastes the token when prompted.
+if [[ -z "${TLS_LINE:-}" && -z "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    echo ""
+    echo "DuckDNS is the easiest way to get a real HTTPS cert on home broadband"
+    echo "(port 80 is usually blocked by ISPs — HTTP-01 won't work)."
+    read -r -p "Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip): " DUCK_INPUT
+    NASANY_DUCKDNS_TOKEN="${NASANY_DUCKDNS_TOKEN:-$DUCK_INPUT}"
+  fi
+fi
 if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
   echo "TLS: DuckDNS token present — issuing a real cert via acme.sh DNS-01 (works on any network, no port 80 needed)"
   mkdir -p caddy

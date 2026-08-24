@@ -118,46 +118,37 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 3. 在 "domains" 里输入你想要的子域名（比如 `mynas`），点 **add domain**
 4. 页面会显示你的 **token**（一串字符，粘贴保存好，相当于密钥）
 
-#### 第 2 步：一键脚本帮你搞定剩下的一切
+#### 第 2 步：一键部署，脚本自动检测环境
 
-部署时把 DuckDNS 的 token 交给脚本。**两种方式任选**：
-
-**方式 ①：把 token 写在命令最前面**（照抄格式，只改 `你的token`）：
+**就一条命令，脚本会自己判断怎么拿证书**：
 
 ```bash
-NASANY_DUCKDNS_TOKEN=你的token bash deploy.sh mynas.duckdns.org your@email.com
-```
-简单记：`NASANY_DUCKDNS_TOKEN=` 后面跟你的 token（空格隔开），再照常写 `bash deploy.sh 域名 邮箱`。
-
-**方式 ②：写进 `.env` 文件**（更不容易抄错）：
-
-```bash
-# 用任意编辑器在本目录建一个 .env 文件，写上这一行：
-NASANY_DUCKDNS_TOKEN=你的token
-
-# 然后正常执行（脚本会自动读 .env）：
 bash deploy.sh mynas.duckdns.org your@email.com
 ```
 
-**执行时到底填什么（对照着填）**：
+- **云服务器 / VPS**（80 端口对外开放）→ 脚本自动检测到，直接用 **Let's Encrypt HTTP-01** 签发证书，全程无感。
+- **家用 NAS**（80 端口被运营商封）→ 脚本检测到 80 不通，会**停下来问你 DuckDNS token**：
 
-| 命令里的位置 | 填什么 | 例子 |
-|------------|--------|------|
-| `NASANY_DUCKDNS_TOKEN=` | 你在 duckdns.org 页面看到的 token（一串字符，像 `3d4507b3-5b2a-45e3-...`） | `NASANY_DUCKDNS_TOKEN=3d4507b3...` |
-| `mynas.duckdns.org` | 你注册的**完整域名**（注意要带 `.duckdns.org`） | `mynas.duckdns.org` |
-| `your@email.com` | 你自己的邮箱（用于申请 HTTPS 证书） | `you@example.com` |
+```
+Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip):
+```
 
-> **token 在哪看**：登录 https://www.duckdns.org 后，页面 "Token" 一栏就是（一串 36 位左右的字符，形如 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`）。复制它，粘贴到命令里或 `.env` 文件里。
+你只需把在 duckdns.org 复制的 **token 粘贴进去，回车**，脚本就自动用 **DNS-01** 签真证书。
 
-两种方式效果完全一样。脚本会自动：
-- 🎫 用 **acme.sh + DuckDNS DNS-01** 申请**真 HTTPS 证书**（不依赖 80 端口，家庭宽带可用）
-- 🔄 生成 `duckdns-update.sh`（调用 DuckDNS 官方接口更新你的公网 IP）
-- ⏰ 安装 **5 分钟一次的定时任务**，IP 变了自动更新域名解析
+两种环境下脚本都会自动完成：启动网关 + TURN 中继 + HTTPS 反代三个容器、生成 `duckdns-update.sh` 并装 5 分钟定时任务（IP 变了域名自动跟随）。
 
-#### 第 3 步：没有 token 时怎么办
+> **token 在哪看**：登录 https://www.duckdns.org 后，页面 "Token" 一栏就是（一串 36 位左右的字符，形如 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`）。
+>
+> **不想每次粘贴？**（可选）可以提前写进 `.env` 文件，脚本就自动读取不再询问：
+> ```bash
+> echo "NASANY_DUCKDNS_TOKEN=你的token" > .env
+> bash deploy.sh mynas.duckdns.org your@email.com
+> ```
 
-- 只填域名 + 邮箱 → 用 **Let's Encrypt**（需要 80 端口开放，云服务器/企业宽带可用）
-- 都不填 → 用**自签证书**（开箱即用，但浏览器会提示不安全，PWA 需手动信任）
+#### 第 3 步：没有 DuckDNS token 时
+
+- **云服务器/VPS**（80 通）：只填域名 + 邮箱就够，脚本自动走 Let's Encrypt。
+- **家用 NAS**（80 不通）且没 token：拿不到真证书，脚本会明确提示你提供 token——**不提供就不继续**（不搞自签冒风险）。
 
 **模块不在 `/dev/ttyUSB2`？**（大多数用户不需要管这条）
 

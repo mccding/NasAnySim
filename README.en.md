@@ -118,46 +118,35 @@ https://your-domain:7577/remote/     # default login admin / admin
 3. In the "domains" field enter your subdomain (e.g. `mynas`), click **add domain**
 4. The page shows your **token** (a string — save it; it's like a key)
 
-#### Step 2: The one-command script does the rest
-
-Give the DuckDNS token to the script. **Either way works**:
-
-**Option 1: prepend the token to the command** (copy the format, change only `your-token`):
+#### Step 2: One command, the script auto-detects your environment
 
 ```bash
-NASANY_DUCKDNS_TOKEN=your-token bash deploy.sh mynas.duckdns.org your@email.com
-```
-Easy rule: put `NASANY_DUCKDNS_TOKEN=` followed by your token (separated by a space), then write `bash deploy.sh domain email` as usual.
-
-**Option 2: put it in a `.env` file** (harder to mistype):
-
-```bash
-# Create a .env file in this folder with any editor, one line:
-NASANY_DUCKDNS_TOKEN=your-token
-
-# Then run normally (the script reads .env automatically):
 bash deploy.sh mynas.duckdns.org your@email.com
 ```
 
-**Fill-in reference (match each part)**:
+- **Cloud / VPS** (port 80 open to the internet) → the script detects this and automatically issues the cert via **Let's Encrypt HTTP-01**, no interaction needed.
+- **Home NAS** (port 80 blocked by the ISP) → the script detects port 80 is unreachable and **stops to ask for your DuckDNS token**:
 
-| In the command | What to put | Example |
-|---------------|-------------|---------|
-| `NASANY_DUCKDNS_TOKEN=` | Your token from duckdns.org (a UUID-like string, e.g. `3d4507b3-5b2a-...`) | `NASANY_DUCKDNS_TOKEN=3d4507b3...` |
-| `mynas.duckdns.org` | Your **full domain** (keep the `.duckdns.org`) | `mynas.duckdns.org` |
-| `your@email.com` | Your email (used to request the HTTPS cert) | `you@example.com` |
+```
+Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip):
+```
 
-> **Where to find the token**: after signing in at https://www.duckdns.org, the "Token" field on the page is your token (~36 chars, shaped `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). Copy it and paste it into the command or the `.env` file.
+Just paste the token you copied from duckdns.org and press Enter — the script then issues a real cert via **DNS-01**.
 
-Both are identical in effect. The script will automatically:
-- 🎫 Issue a **real HTTPS cert** via acme.sh + DuckDNS DNS-01 (no port 80 needed, works on home broadband)
-- 🔄 Generate `duckdns-update.sh` (calls the DuckDNS API to update your public IP)
-- ⏰ Install a **5-minute cron job** so the domain follows IP changes automatically
+In both cases the script also starts the gateway, the TURN relay and the HTTPS reverse proxy (three containers), generates `duckdns-update.sh` and installs a 5-minute cron so the domain follows your IP changes.
 
-#### Step 3: What if you have no token
+> **Where to find the token**: after signing in at https://www.duckdns.org, the "Token" field on the page is your token (~36 chars, shaped `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
+>
+> **Don't want to paste it every time?** (optional) Put it in a `.env` file and the script reads it automatically without asking:
+> ```bash
+> echo "NASANY_DUCKDNS_TOKEN=your-token" > .env
+> bash deploy.sh mynas.duckdns.org your@email.com
+> ```
 
-- Domain + email only → **Let's Encrypt** (needs port 80 open; cloud/server/hosted use)
-- Neither → **self-signed** cert (works out of the box; browser shows a warning, PWA needs manual trust)
+#### Step 3: If you have no DuckDNS token
+
+- **Cloud / VPS** (port 80 open): domain + email is enough — the script uses Let's Encrypt automatically.
+- **Home NAS** (port 80 blocked) without a token: no real cert is possible, so the script clearly asks for a token and **refuses to continue otherwise** (no risky self-signed fallback).
 
 **Module not on `/dev/ttyUSB2`?** (Most users can ignore this.)
 
