@@ -57,32 +57,142 @@ if [[ ! -f turn-secret ]]; then
   openssl rand -base64 32 > turn-secret
   chmod 600 turn-secret
 fi
-TURN_SECRET="$(tr -d '\n' < turn-secret)"
+TURN_SECRET="$(< turn-secret)"
+TURN_SECRET="${TURN_SECRET%%$'\n'}"
 
 # TURN config (coturn.conf)
 mkdir -p coturn
 TURN_IP="$(ip -4 addr show 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d/ -f1 | grep -v '^127\.' | head -1 || true)"
 # Public IP for the TURN relay candidate (external-ip). Prefer NASANY_PUBLIC_IP
-# (user-provided), else resolve from the domain (DDNS), else fall back to the LAN IP.
+# (user-provided), else resolve from the domain via AUTHORITATIVE DNS (skips a
+# locally hijacked resolver / transparent proxy — e.g. 198.18.x or the proxy
+# node IP), else fall back to the LAN IP.
+PUBLIC_IP=""
 if [[ -n "${NASANY_PUBLIC_IP:-}" ]]; then
   PUBLIC_IP="$NASANY_PUBLIC_IP"
-elif command -v getent >/dev/null 2>&1 && getent hosts "$DOMAIN" >/dev/null 2>&1; then
-  PUBLIC_IP="$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1)"
 else
-  PUBLIC_IP=""
+  # Authoritative lookup, bypassing local resolver hijack: try Google/Cloudflare DNS over HTTPS.
+  PUB_DOH="$(curl -s --max-time 8 "https://dns.google/resolve?name=${DOMAIN}&type=A" 2>/dev/null | grep -oE '"data":"[0-9.]+"' | head -1 | grep -oE '[0-9]+(\.[0-9]+){3}' || true)"
+  if [[ -z "$PUB_DOH" ]]; then
+    PUB_DOH="$(curl -s --max-time 8 "https://cloudflare-dns.com/dns-query?name=${DOMAIN}&type=A" -H 'accept: application/dns-json' 2>/dev/null | grep -oE '"data":"[0-9.]+"' | head -1 | grep -oE '[0-9]+(\.[0-9]+){3}' || true)"
+  fi
+  # Skip obviously hijacked addresses (private / 198.18.0.0/15 / reserved ranges).
+  if [[ -n "$PUB_DOH" ]] && ! echo "$PUB_DOH" | grep -qE '^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|198\.18\.|169\.254\.|0\.)'; then
+    PUBLIC_IP="$PUB_DOH"
+    echo "INFO: resolved public IP from authoritative DNS: $PUBLIC_IP"
+  else
+    # Fall back to local getent (works on normal networks without hijack).
+    if command -v getent >/dev/null 2>&1 && getent hosts "$DOMAIN" >/dev/null 2>&1; then
+      PUBLIC_IP="$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1)"
+    fi
+  fi
 fi
 PUBLIC_IP="${PUBLIC_IP:-$TURN_IP}"
-# Optional TLS: if the user supplies fullchain.pem + privkey.pem in ./coturn,
-# enable the TLS listener on 5349 (needs UDP+TCP 5349 port-forwarded).
+
+# NOTE: TURN config (turnserver.conf) is generated LATER, after the TLS cert is
+# issued (or user certs placed in ./coturn), so turnserver.conf can enable the
+# TLS listener on 5349 when certs exist.
+
+
+# Session secret
+mkdir -p data/auth
+if [[ ! -f data/auth/session-secret ]]; then
+  echo "GEN: data/auth/session-secret"
+  openssl rand -base64 48 > data/auth/session-secret
+  chmod 600 data/auth/session-secret
+fi
+
+# VAPID private key for Web Push (-remote-push). Without it the gateway refuses
+# to start (log.Fatal), so generate a P-256 key on first run.
+# Format: 43-char base64url (no padding), P-256 private key scalar.
+if [[ ! -f data/vapid-private-key ]]; then
+  echo "GEN: data/vapid-private-key"
+  openssl ecparam -genkey -name prime256v1 -noout 2>/dev/null \
+    | openssl ec -outform DER 2>/dev/null \
+    | tail -c 32 \
+    | openssl base64 -A 2>/dev/null \
+    | tr '+/' '-_' | tr -d '=' > data/vapid-private-key
+  chmod 600 data/vapid-private-key
+fi
+
+echo "DOMAIN: $DOMAIN"
+
+# ---- Auto HTTPS, one command for everyone ----
+# The script figures out the best cert path by itself:
+#   1) user-provided certs in ./caddy/{fullchain,privkey}.pem  -> use them
+#   2) port 80 publicly reachable (cloud/VPS)                   -> Let's Encrypt HTTP-01
+#   3) port 80 blocked (home broadband) + DuckDNS token         -> acme.sh DNS-01
+#   4) otherwise                                                -> self-signed (works anyway)
+TLS_LINE=""
+
+# (1) User-provided certs first.
+if [[ -f caddy/fullchain.pem && -f caddy/privkey.pem ]]; then
+  TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
+  echo "TLS: using your certs (./caddy/fullchain.pem + privkey.pem)"
+fi
+
+# (2) DuckDNS token → DNS-01. This works on EVERY network (home broadband with
+# port 80 blocked, cloud, whatever), so when a token is present we prefer it.
+# It never touches port 80, so it can't be tripped up by a firewall/ISP block.
+if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
+  echo "TLS: DuckDNS token present — issuing a real cert via acme.sh DNS-01 (works on any network, no port 80 needed)"
+  mkdir -p caddy
+  if command -v acme.sh >/dev/null 2>&1 || [[ -f ~/.acme.sh/acme.sh ]]; then
+    ACME="$([ -f ~/.acme.sh/acme.sh ] && echo ~/.acme.sh/acme.sh || command -v acme.sh)"
+    export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
+    echo "TLS: running acme.sh --dns dns_duckdns -d $DOMAIN ..."
+    "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force 2>&1 | tail -2
+    if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer && -f ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key ]]; then
+      cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
+      cp ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key caddy/privkey.pem
+      chmod 600 caddy/privkey.pem
+      # Also give the certs to coturn so TURN can serve TLS on 5349 (home
+      # routers commonly forward TCP 5349 but not UDP 3478).
+      # NOTE: coturn runs unprivileged inside the container, so the private key
+      # MUST be world-readable (0644), not 0600 like the caddy copy.
+      mkdir -p coturn
+      cp caddy/fullchain.pem coturn/fullchain.pem
+      cp caddy/privkey.pem coturn/privkey.pem
+      chmod 644 coturn/privkey.pem coturn/fullchain.pem
+      TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
+      echo "TLS: real cert issued (DuckDNS DNS-01) -> ./caddy/fullchain.pem + ./coturn/"
+    else
+      echo "TLS: acme.sh didn't produce a cert — falling through to HTTP-01 check."
+      rm -f caddy/fullchain.pem caddy/privkey.pem 2>/dev/null
+    fi
+  else
+    echo "TLS: acme.sh is not installed — install it now to auto-issue the cert."
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+      read -r -p "Install acme.sh now? (y/N): " ACME_INSTALL
+      if [[ "${ACME_INSTALL,,}" == "y" ]]; then
+        curl -fsSL https://get.acme.sh | sh 2>&1 | tail -1
+        ACME="$HOME/.acme.sh/acme.sh"
+        export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
+        "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force 2>&1 | tail -2
+        if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer ]]; then
+          cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
+          cp ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key caddy/privkey.pem
+          chmod 600 caddy/privkey.pem
+          TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
+          echo "TLS: real cert issued -> ./caddy/fullchain.pem"
+        fi
+      fi
+    fi
+  fi
+fi
+
+# ---- TURN config (generated AFTER certs are placed, so TLS 5349 can be
+# enabled when a cert exists in ./coturn) ----
 TLS_BLOCK=""
 if [[ -f coturn/fullchain.pem && -f coturn/privkey.pem ]]; then
   TLS_BLOCK="tls-listening-port=5349
 cert=/etc/coturn/fullchain.pem
 pkey=/etc/coturn/privkey.pem"
-  echo "NOTE: TLS 5349 enabled (found ./coturn/fullchain.pem + privkey.pem)"
+  echo "NOTE: TURN TLS 5349 enabled (certs found in ./coturn)"
 else
   echo "NOTE: no TLS certs in ./coturn — TURN over UDP 3478 only (no-tls)."
 fi
+mkdir -p coturn
 cat > coturn/turnserver.conf <<EOF
 realm=${DOMAIN}
 server-name=${DOMAIN}
@@ -124,65 +234,37 @@ denied-peer-ip=224.0.0.0-255.255.255.255
 log-file=stdout
 simple-log
 EOF
-echo "OK: coturn/turnserver.conf (external-ip=${PUBLIC_IP})"
+echo "OK: coturn/turnserver.conf (external-ip=${PUBLIC_IP})${TLS_BLOCK:+ TLS5349=on}"
 
-# Session secret
-mkdir -p data/auth
-if [[ ! -f data/auth/session-secret ]]; then
-  echo "GEN: data/auth/session-secret"
-  openssl rand -base64 48 > data/auth/session-secret
-  chmod 600 data/auth/session-secret
-fi
-
-# VAPID private key for Web Push (-remote-push). Without it the gateway refuses
-# to start (log.Fatal), so generate a P-256 key on first run.
-# Format: 43-char base64url (no padding), P-256 private key scalar.
-if [[ ! -f data/vapid-private-key ]]; then
-  echo "GEN: data/vapid-private-key"
-  openssl ecparam -genkey -name prime256v1 -noout 2>/dev/null \
-    | openssl ec -outform DER 2>/dev/null \
-    | tail -c 32 \
-    | openssl base64 -A 2>/dev/null \
-    | tr '+/' '-_' | tr -d '=' > data/vapid-private-key
-  chmod 600 data/vapid-private-key
-fi
-
-echo "DOMAIN: $DOMAIN"
-# TLS strategy, most reliable first:
-#   1) NASANY_DUCKDNS_TOKEN set -> auto-issue a real cert via acme.sh DNS-01
-#      (works on home broadband where port 80 is blocked; DuckDNS only).
-#   2) User-supplied certs in ./caddy/{fullchain,privkey}.pem -> use them.
-#   3) EMAIL given -> Let's Encrypt HTTP-01 (needs port 80 free + forwarded).
-#   4) Otherwise -> self-signed `tls internal` (works out of the box).
-if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
-  echo "TLS: DuckDNS token present — issuing a real cert via acme.sh DNS-01..."
-  if command -v acme.sh >/dev/null 2>&1 || [[ -f ~/.acme.sh/acme.sh ]]; then
-    ACME="$([ -f ~/.acme.sh/acme.sh ] && echo ~/.acme.sh/acme.sh || command -v acme.sh)"
-    mkdir -p caddy
-    export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
-    "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force 2>&1 | tail -3 || echo "acme.sh issue failed — falling back to user certs/internal"
-    if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer && -f ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key ]]; then
-      cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
-      cp ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key caddy/privkey.pem
-      chmod 600 caddy/privkey.pem
-      TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
-      echo "TLS: real cert issued (DuckDNS DNS-01) -> ./caddy/fullchain.pem"
-    else
-      echo "TLS: acme.sh did not produce a cert — falling through"
-    fi
+# (3) No token, no user certs → try HTTP-01 (works on cloud/VPS where port 80
+# is open to the internet). We check BOTH that this host can bind :80 AND the
+# domain answers on :80 from the outside. Home broadband (port 80 blocked by
+# the ISP/firewall) fails this and falls through to an error below.
+if [[ -z "${TLS_LINE:-}" ]]; then
+  LOCAL80="free"
+  if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE ':(80)\b'; then
+    LOCAL80="busy"
+  fi
+  PUB80=0
+  if curl -fsS --max-time 6 "http://${DOMAIN}/" >/dev/null 2>&1; then
+    PUB80=1
+  fi
+  if [[ "$LOCAL80" == "free" && "$PUB80" -eq 1 && -n "$EMAIL" ]]; then
+    TLS_LINE="tls $EMAIL"
+    echo "TLS: port 80 is publicly reachable — issuing a real cert via Let's Encrypt (HTTP-01)"
   else
-    echo "TLS: acme.sh not found — install it or provide certs; falling through"
+    echo "TLS: port 80 is not reachable from the internet (home broadband / firewall) — HTTP-01 won't work."
   fi
 fi
-if [[ -z "${TLS_LINE:-}" && -f caddy/fullchain.pem && -f caddy/privkey.pem ]]; then
-  TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
-  echo "TLS: using user-provided certs ./caddy/fullchain.pem + privkey.pem"
-elif [[ -z "${TLS_LINE:-}" && -n "$EMAIL" ]]; then
-  TLS_LINE="tls $EMAIL"
-  echo "TLS: Let's Encrypt via $EMAIL (requires port 80 free & forwarded to this host)"
-elif [[ -z "${TLS_LINE:-}" ]]; then
-  TLS_LINE="tls internal"
-  echo "TLS: self-signed (tls internal) — add ./caddy/fullchain.pem + privkey.pem and re-run for real certs"
+
+# (4) No real cert obtained → fail loudly. No self-signed fallback.
+if [[ -z "${TLS_LINE:-}" ]]; then
+  echo "ERROR: could not obtain a real HTTPS certificate."
+  echo "  On home broadband (port 80 blocked) you MUST provide a DuckDNS token:"
+  echo "    NASANY_DUCKDNS_TOKEN=your-token bash deploy.sh $DOMAIN $EMAIL"
+  echo "  On a cloud/VPS, ensure port 80 is open and forwarded, then re-run."
+  echo "  Refusing to continue with a browser-warning self-signed cert."
+  exit 1
 fi
 
 # Caddyfile
@@ -218,9 +300,12 @@ https://${DOMAIN}:7577 {
         forward_auth 127.0.0.1:7578 {
             uri /api/remote/v1/auth/check
             header_up Host localhost
+            header_up Origin https://localhost
         }
+        redir / /remote/ permanent
         reverse_proxy 127.0.0.1:7578 {
             header_up Host localhost
+            header_up Origin https://localhost
         }
     }
 }
@@ -333,7 +418,6 @@ services:
     container_name: nasany-caddy
     restart: unless-stopped
     network_mode: host
-    profiles: ${CADDY_PROFILE:-["default"]}
     volumes:
       - ./caddy:/etc/caddy
       - caddy_data:/data
@@ -353,8 +437,19 @@ if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" && -n "$DOMAIN" ]]; then
   if [[ "$DOMAIN" == *".duckdns.org" ]]; then NOREDIR_D="${DOMAIN%.duckdns.org}"; else NOREDIR_D="$DOMAIN"; fi
   cat > duckdns-update.sh <<EOF
 #!/usr/bin/env bash
-# DuckDNS IP updater for ${NOREDIR_D} (auto-detects current public IP on each run)
-curl -fsS --max-time 15 "https://www.duckdns.org/update?domains=${NOREDIR_D}&token=${NASANY_DUCKDNS_TOKEN}&ip=" || true
+# DuckDNS IP updater for ${NOREDIR_D} — resolves the real public IP via
+# authoritative DNS (not DuckDNS auto-detect, which a transparent proxy/TUN can
+# poison), then pushes it to DuckDNS.
+PUB="\$(curl -s --max-time 8 \"https://dns.google/resolve?name=${DOMAIN}&type=A\" 2>/dev/null | grep -oE '\"data\":\"[0-9.]+\"' | head -1 | grep -oE '[0-9]+(\\.[0-9]+){3}' || true)"
+if echo "\$PUB" | grep -qE '^(127\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|198\\.18\\.|169\\.254\\.|0\\.)'; then
+  echo "duckdns-update: skipping suspicious IP \$PUB" >> /var/log/duckdns-update.log 2>&1
+  exit 0
+fi
+if [[ -n "\$PUB" ]]; then
+  curl -fsS --max-time 15 "https://www.duckdns.org/update?domains=${NOREDIR_D}&token=${NASANY_DUCKDNS_TOKEN}&ip=\$PUB" >> /var/log/duckdns-update.log 2>&1 || true
+else
+  echo "duckdns-update: no public IP resolved" >> /var/log/duckdns-update.log 2>&1
+fi
 EOF
   chmod +x duckdns-update.sh
   echo "OK: duckdns-update.sh (${NOREDIR_D}.duckdns.org)"
