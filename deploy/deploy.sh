@@ -172,10 +172,21 @@ elif command -v netstat >/dev/null 2>&1 && netstat -tln 2>/dev/null | grep -qE '
   echo "      Skipping the bundled caddy container. Add the site block from"
   echo "      ./caddy/Caddyfile to your own proxy, or forward 7577 -> 127.0.0.1:7578."
 fi
+# Detect host architecture → choose the matching image tag.
+# arm64 (most NAS) → :latest (arm64); x86_64 → :amd64.
+ARCH="$(uname -m 2>/dev/null || echo unknown)"
+if [[ "$ARCH" == "x86_64" || "$ARCH" == "amd64" ]]; then
+  NASANY_IMAGE="mccdingding/nasany-sms:amd64"
+  echo "ARCH: x86_64 (amd64) — using amd64 image"
+else
+  NASANY_IMAGE="mccdingding/nasany-sms:latest"
+  echo "ARCH: $ARCH — using arm64 image"
+fi
+
 cat > docker-compose.yaml <<EOF
 services:
   nasany-sms:
-    image: mccdingding/nasany-sms:latest
+    image: ${NASANY_IMAGE}
     container_name: nasany-sms
     restart: unless-stopped
     network_mode: host

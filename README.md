@@ -7,7 +7,7 @@
 [简体中文](README.md) · [English](README.en.md)
 
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)
-![Platform](https://img.shields.io/badge/Platform-ARM64%20Linux-green.svg)
+![Platform](https://img.shields.io/badge/Platform-ARM64%20%2F%20x86_64-green.svg)
 ![Version](https://img.shields.io/badge/Version-1.0.0--rc.4-lightgrey.svg)
 
 </div>
@@ -41,7 +41,7 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 | 🔔 后台通知 | 来电/短信 Web Push，关闭 PWA 也能收到 |
 | 🎙 通话录音 | NAS 本地录制，PWA 内播放/删除 |
 | 🔐 安全认证 | 持久化 Cookie 认证，兼容 Caddy 反代 |
-| 🐳 一键部署 | 单容器 ARM64 镜像，`docker compose up` 即用 |
+| 🐳 一键部署 | 单容器镜像（ARM64 / x86_64），`docker compose up` 即用 |
 
 ---
 
@@ -49,7 +49,7 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 > **闭源 · 仅镜像分发 · 免费自用 · 禁止商用**
 
-本项目以**预编译的 ARM64 Docker 镜像**形式发布。**源码不公开**；镜像**仅供个人免费使用，禁止商用倒卖或再分发**。
+本项目以**预编译的 Docker 镜像**形式发布（ARM64 / x86_64）。**源码不公开**；镜像**仅供个人免费使用，禁止商用倒卖或再分发**。
 
 闭源原因：项目早期 USB/AT/eSIM/模块管理基础衍生自 **VoHive/DJOneHub**（[github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)），受其 **"Changes and New Works License"** 约束；UAC 探测与 QDC507 音频路径参考了 **MaVo**（[github.com/moluncn/mavo](https://github.com/moluncn/mavo)，MIT）等公开项目。这些上游协议限制了衍生作品的再分发方式。
 
@@ -65,7 +65,7 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 
 | # | 你要做的 | 说明 |
 |---|---------|------|
-| 1 | 🖥 **一台 ARM64 NAS** | 已装 Docker（fnOS / rk35xx 已验证） |
+| 1 | 🖥 **一台 NAS**（ARM64 或 x86_64） | 已装 Docker（fnOS / rk35xx 已验证） |
 | 2 | 📶 **4G 模块 + SIM 卡** | 插在 NAS 上，枚举为 `/dev/ttyUSB2` |
 | 3 | 🌐 **一个域名** | 解析到你家宽公网 IP（DDNS 也行） |
 
@@ -195,7 +195,7 @@ docker exec nasany-sms /usr/local/bin/djonehub-macos \
 <details>
 <summary><b>支持 x86_64 吗？</b></summary>
 
-目前镜像为 **ARM64**（rk35xx NAS）。x86_64 构建后续可能加入。
+支持。提供 **ARM64** 和 **x86_64** 两种镜像，一键脚本会自动检测 NAS 架构并拉取对应版本。
 </details>
 
 <details>

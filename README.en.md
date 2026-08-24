@@ -7,7 +7,7 @@
 [简体中文](README.md) · [English](README.en.md)
 
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)
-![Platform](https://img.shields.io/badge/Platform-ARM64%20Linux-green.svg)
+![Platform](https://img.shields.io/badge/Platform-ARM64%20%2F%20x86_64-green.svg)
 ![Version](https://img.shields.io/badge/Version-1.0.0--rc.4-lightgrey.svg)
 
 </div>
@@ -41,7 +41,7 @@ Reachable from any modern browser (iOS PWA, Android, desktop) — no need to car
 | 🔔 Background push | Incoming call & SMS notifications even when the PWA is closed |
 | 🎙 Call recording | Recorded on the NAS, playable/deletable from the PWA |
 | 🔐 Secure auth | Persistent cookie auth, works behind Caddy forward_auth |
-| 🐳 One-command deploy | Single ARM64 container, `docker compose up` and go |
+| 🐳 One-command deploy | Single container (ARM64 / x86_64), `docker compose up` and go |
 
 ---
 
@@ -49,7 +49,7 @@ Reachable from any modern browser (iOS PWA, Android, desktop) — no need to car
 
 > **Closed-source · Image-only distribution · Free for personal use · No commercial resale**
 
-This project ships as **prebuilt ARM64 Docker images only**. The source is **not published**; the images are **free for personal use but not for commercial resale or redistribution**.
+This project ships as **prebuilt Docker images** (ARM64 / x86_64). The source is **not published**; the images are **free for personal use but not for commercial resale or redistribution**.
 
 **Why closed-source:** the early USB/AT/eSIM/modem-management foundation derives from **VoHive / DJOneHub** ([github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)) under its own **"Changes and New Works License"**; the UAC probing and QDC507 audio path reference **MaVo** ([github.com/moluncn/mavo](https://github.com/moluncn/mavo), MIT) and similar public projects. These upstream obligations constrain how derivatives may be redistributed.
 
@@ -65,7 +65,7 @@ Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 | # | What you do | Notes |
 |---|-------------|-------|
-| 1 | 🖥 **An ARM64 NAS** | with Docker installed (fnOS / rk35xx verified) |
+| 1 | 🖥 **A NAS** (ARM64 or x86_64) | with Docker installed (fnOS / rk35xx verified) |
 | 2 | 📶 **A 4G module + SIM** | plugged into the NAS, enumerated as `/dev/ttyUSB2` |
 | 3 | 🌐 **A domain** | pointing to your home public IP (DDNS works too) |
 
@@ -193,7 +193,7 @@ Upstream obligations (VoHive's "Changes and New Works License", libusb LGPL, MaV
 <details>
 <summary><b>Does it work on x86_64?</b></summary>
 
-Currently the image is built for **ARM64** (rk35xx NAS). x86_64 builds may be added later.
+Yes. Both **ARM64** and **x86_64** images are provided; the one-command script auto-detects your NAS architecture and pulls the matching image.
 </details>
 
 <details>
