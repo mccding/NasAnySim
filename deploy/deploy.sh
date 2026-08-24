@@ -148,20 +148,40 @@ if [[ -n "$EMAIL" ]]; then TLS_LINE="tls $EMAIL"; else TLS_LINE="tls internal"; 
 # Caddyfile
 mkdir -p caddy
 cat > caddy/Caddyfile <<EOF
+{
+    admin off
+}
+
 https://${DOMAIN}:7577 {
     ${TLS_LINE}
     handle /remote/auth/* {
-        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+        reverse_proxy 127.0.0.1:7578 {
+            header_up Host localhost
+        }
     }
-    handle /remote/*.png { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
-    handle /remote/*.svg { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
-    handle /remote/manifest.webmanifest { reverse_proxy 127.0.0.1:7578 { header_up Host localhost } }
+    handle /remote/*.png {
+        reverse_proxy 127.0.0.1:7578 {
+            header_up Host localhost
+        }
+    }
+    handle /remote/*.svg {
+        reverse_proxy 127.0.0.1:7578 {
+            header_up Host localhost
+        }
+    }
+    handle /remote/manifest.webmanifest {
+        reverse_proxy 127.0.0.1:7578 {
+            header_up Host localhost
+        }
+    }
     handle {
         forward_auth 127.0.0.1:7578 {
             uri /api/remote/v1/auth/check
             header_up Host localhost
         }
-        reverse_proxy 127.0.0.1:7578 { header_up Host localhost }
+        reverse_proxy 127.0.0.1:7578 {
+            header_up Host localhost
+        }
     }
 }
 EOF
@@ -277,7 +297,8 @@ services:
     volumes:
       - ./caddy:/etc/caddy
       - caddy_data:/data
-    command: caddy run --config /etc/caddy/Caddyfile
+    # Admin API disabled via `admin off` in the Caddyfile (avoids :2019 clashes).
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
 
 volumes:
   caddy_data:
