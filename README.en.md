@@ -122,14 +122,14 @@ https://your-domain:7577/remote/     # default login admin / admin
 
 Give the DuckDNS token to the script. **Either way works**:
 
-**Option A: prepend the token to the command** (copy the format, change only `your-token`):
+**Option 1: prepend the token to the command** (copy the format, change only `your-token`):
 
 ```bash
 NASANY_DUCKDNS_TOKEN=your-token bash deploy.sh mynas.duckdns.org your@email.com
 ```
 Easy rule: put `NASANY_DUCKDNS_TOKEN=` followed by your token (separated by a space), then write `bash deploy.sh domain email` as usual.
 
-**Option B: put it in a `.env` file** (harder to mistype):
+**Option 2: put it in a `.env` file** (harder to mistype):
 
 ```bash
 # Create a .env file in this folder with any editor, one line:

@@ -122,14 +122,14 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 
 部署时把 DuckDNS 的 token 交给脚本。**两种方式任选**：
 
-**方式 A：把 token 写在命令最前面**（照抄格式，只改 `你的token`）：
+**方式 ①：把 token 写在命令最前面**（照抄格式，只改 `你的token`）：
 
 ```bash
 NASANY_DUCKDNS_TOKEN=你的token bash deploy.sh mynas.duckdns.org your@email.com
 ```
 简单记：`NASANY_DUCKDNS_TOKEN=` 后面跟你的 token（空格隔开），再照常写 `bash deploy.sh 域名 邮箱`。
 
-**方式 B：写进 `.env` 文件**（更不容易抄错）：
+**方式 ②：写进 `.env` 文件**（更不容易抄错）：
 
 ```bash
 # 用任意编辑器在本目录建一个 .env 文件，写上这一行：
