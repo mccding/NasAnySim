@@ -107,6 +107,35 @@ https://your-domain:7577/remote/     # default login admin / admin
 
 **Already running Caddy/Nginx?** Nothing to do — the script auto-detects that 7577 is in use, skips its own Caddy, and your proxy is untouched. A ready-made site config is written to `./caddy/Caddyfile` for you to copy into your proxy.
 
+**Use DuckDNS free domain + auto HTTPS cert?** (Recommended for home broadband with a public IP but port 80 blocked by your ISP)
+
+> **Why DuckDNS?** Home broadband public IPs are dynamic (they change). You need a free domain whose IP follows automatically. DuckDNS is free, no registration fees, works worldwide.
+
+#### Step 1: Create a DuckDNS domain
+
+1. Open https://www.duckdns.org
+2. Sign in with **GitHub / Google / Twitter** (any works)
+3. In the "domains" field enter your subdomain (e.g. `mynas`), click **add domain**
+4. The page shows your **token** (a string — save it; it's like a key)
+
+#### Step 2: The one-command script does the rest
+
+Pass the DuckDNS token to the script as an env var:
+
+```bash
+NASANY_DUCKDNS_TOKEN=your-token bash deploy.sh mynas.duckdns.org your@email.com
+```
+
+The script will automatically:
+- 🎫 Issue a **real HTTPS cert** via acme.sh + DuckDNS DNS-01 (no port 80 needed, works on home broadband)
+- 🔄 Generate `duckdns-update.sh` (calls the DuckDNS API to update your public IP)
+- ⏰ Install a **5-minute cron job** so the domain follows IP changes automatically
+
+#### Step 3: What if you have no token
+
+- Domain + email only → **Let's Encrypt** (needs port 80 open; cloud/server/hosted use)
+- Neither → **self-signed** cert (works out of the box; browser shows a warning, PWA needs manual trust)
+
 **Module not on `/dev/ttyUSB2`?** (Most users can ignore this.)
 
 Only needed if the script prints `WARN: /dev/ttyUSB2 not found`. First check which serial port your module is on:

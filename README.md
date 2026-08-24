@@ -107,6 +107,35 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 
 **已有 Caddy/Nginx 反代？** 无需任何操作——脚本会自动检测到 7577 被占用，跳过自带 Caddy，你的反代不受影响。生成的 `./caddy/Caddyfile` 里有现成的站点配置，复制到你的反代即可复用。
 
+**用 DuckDNS 免费域名 + 自动申请 HTTPS 证书？**（家庭宽带有公网 IP 但 80 端口被运营商封时推荐）
+
+> **为什么需要 DuckDNS？** 家庭宽带公网 IP 是动态的（会变），需要一个免费域名 + 自动更新 IP 才能稳定访问你的 NAS。DuckDNS 完全免费、无需备案。
+
+#### 第 1 步：注册 DuckDNS 域名
+
+1. 打开 https://www.duckdns.org
+2. 用 **GitHub / Google / Twitter 账号**登录（都行）
+3. 在 "domains" 里输入你想要的子域名（比如 `mynas`），点 **add domain**
+4. 页面会显示你的 **token**（一串字符，粘贴保存好，相当于密钥）
+
+#### 第 2 步：一键脚本帮你搞定剩下的一切
+
+部署时把 DuckDNS token 作为环境变量传给脚本：
+
+```bash
+NASANY_DUCKDNS_TOKEN=你的token bash deploy.sh mynas.duckdns.org your@email.com
+```
+
+脚本会自动：
+- 🎫 用 **acme.sh + DuckDNS DNS-01** 申请**真 HTTPS 证书**（不依赖 80 端口，家庭宽带可用）
+- 🔄 生成 `duckdns-update.sh`（调用 DuckDNS 官方接口更新你的公网 IP）
+- ⏰ 安装 **5 分钟一次的定时任务**，IP 变了自动更新域名解析
+
+#### 第 3 步：没有 token 时怎么办
+
+- 只填域名 + 邮箱 → 用 **Let's Encrypt**（需要 80 端口开放，云服务器/企业宽带可用）
+- 都不填 → 用**自签证书**（开箱即用，但浏览器会提示不安全，PWA 需手动信任）
+
 **模块不在 `/dev/ttyUSB2`？**（大多数用户不需要管这条）
 
 只有当你运行脚本时看到 `WARN: /dev/ttyUSB2 not found`（模块串口没找到）才需要处理。先查一下你的模块实际在哪个串口：
