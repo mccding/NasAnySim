@@ -150,10 +150,18 @@ if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
   if command -v acme.sh >/dev/null 2>&1 || [[ -f ~/.acme.sh/acme.sh ]]; then
     ACME="$([ -f ~/.acme.sh/acme.sh ] && echo ~/.acme.sh/acme.sh || command -v acme.sh)"
     export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
-    echo "TLS: running acme.sh --dns dns_duckdns -d $DOMAIN ..."
+    # Fresh acme.sh installs default CA to ZeroSSL, which REQUIRES an account
+    # (EAB/email) before issuing — otherwise it aborts with
+    # "Please update your account with an email address first."
+    # Register with Let's Encrypt explicitly (free, no EAB, idempotent) and pin
+    # --server on the issue so the machine's global default CA is untouched.
+    ACME_EMAIL="${EMAIL:-admin@${DOMAIN}}"
+    "$ACME" --register-account -m "$ACME_EMAIL" --server letsencrypt >/tmp/acme-register.log 2>&1 || true
+    echo "TLS: acme.sh account ok ($(tail -1 /tmp/acme-register.log | sed 's/^\[[^]]*\] //'))"
+    echo "TLS: running acme.sh --dns dns_duckdns -d $DOMAIN (Let's Encrypt) ..."
     # acme.sh may exit non-zero (rate limits, network) — never let that trip
     # set -e. Validate by checking whether the cert files appeared.
-    "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force >/tmp/acme-issue.log 2>&1 || true
+    "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --server letsencrypt --force >/tmp/acme-issue.log 2>&1 || true
     tail -3 /tmp/acme-issue.log
     if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer && -f ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key ]]; then
       cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
@@ -198,7 +206,14 @@ if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
           exit 1
         fi
         export DuckDNS_Token="$NASANY_DUCKDNS_TOKEN"
-        "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --force >/tmp/acme-issue.log 2>&1 || true
+        # Fresh installs default to ZeroSSL CA, which requires an account
+        # (EAB/email) before issuing — register with Let's Encrypt explicitly
+        # (free, no EAB, idempotent) and pin --server so the global default
+        # CA of the machine is untouched.
+        ACME_EMAIL="${EMAIL:-admin@${DOMAIN}}"
+        "$ACME" --register-account -m "$ACME_EMAIL" --server letsencrypt >/tmp/acme-register.log 2>&1 || true
+        echo "TLS: acme.sh account ok ($(tail -1 /tmp/acme-register.log | sed 's/^\[[^]]*\] //'))"
+        "$ACME" --issue --dns dns_duckdns -d "$DOMAIN" --keylength ec-256 --server letsencrypt --force >/tmp/acme-issue.log 2>&1 || true
         tail -3 /tmp/acme-issue.log
         if [[ -f ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer && -f ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key ]]; then
           cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer caddy/fullchain.pem
