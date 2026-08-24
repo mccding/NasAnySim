@@ -445,21 +445,20 @@ echo "OK: docker-compose.yaml"
 if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" && -n "$DOMAIN" ]]; then
   NOREDIR_D=''
   if [[ "$DOMAIN" == *".duckdns.org" ]]; then NOREDIR_D="${DOMAIN%.duckdns.org}"; else NOREDIR_D="$DOMAIN"; fi
+  # Preferred: leave ip= empty → DuckDNS detects this host's real public IP
+  # from the request source. This is the standard dynamic-IP update and works
+  # for normal home broadband. (If a transparent proxy/TUN spoofs the source,
+  # pass NASANY_PUBLIC_IP explicitly at deploy time and we bake it in below.)
+  if [[ -n "${NASANY_PUBLIC_IP:-}" ]]; then
+    UPDATE_URL="https://www.duckdns.org/update?domains=${NOREDIR_D}&token=${NASANY_DUCKDNS_TOKEN}&ip=${NASANY_PUBLIC_IP}"
+  else
+    UPDATE_URL="https://www.duckdns.org/update?domains=${NOREDIR_D}&token=${NASANY_DUCKDNS_TOKEN}&ip="
+  fi
   cat > duckdns-update.sh <<EOF
 #!/usr/bin/env bash
-# DuckDNS IP updater for ${NOREDIR_D} — resolves the real public IP via
-# authoritative DNS (not DuckDNS auto-detect, which a transparent proxy/TUN can
-# poison), then pushes it to DuckDNS.
-PUB="\$(curl -s --max-time 8 \"https://dns.google/resolve?name=${DOMAIN}&type=A\" 2>/dev/null | grep -oE '\"data\":\"[0-9.]+\"' | head -1 | grep -oE '[0-9]+(\\.[0-9]+){3}' || true)"
-if echo "\$PUB" | grep -qE '^(127\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|198\\.18\\.|169\\.254\\.|0\\.)'; then
-  echo "duckdns-update: skipping suspicious IP \$PUB" >> /var/log/duckdns-update.log 2>&1
-  exit 0
-fi
-if [[ -n "\$PUB" ]]; then
-  curl -fsS --max-time 15 "https://www.duckdns.org/update?domains=${NOREDIR_D}&token=${NASANY_DUCKDNS_TOKEN}&ip=\$PUB" >> /var/log/duckdns-update.log 2>&1 || true
-else
-  echo "duckdns-update: no public IP resolved" >> /var/log/duckdns-update.log 2>&1
-fi
+# DuckDNS IP updater for ${NOREDIR_D} — uses DuckDNS's own source-IP detection
+# (standard dynamic-IP behaviour), unless a fixed public IP was baked in.
+curl -fsS --max-time 15 "${UPDATE_URL}" >> /var/log/duckdns-update.log 2>&1 || true
 EOF
   chmod +x duckdns-update.sh
   echo "OK: duckdns-update.sh (${NOREDIR_D}.duckdns.org)"
