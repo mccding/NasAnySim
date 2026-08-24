@@ -2,7 +2,7 @@
 
 <img src="brand/icon.png" width="96" alt="NasAnySim icon">
 
-# 📡 NasAnySim
+# NasAnySim
 
 **Turn a 4G module plugged into your NAS into a private phone & SMS gateway — reachable from any browser.**
 
