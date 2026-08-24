@@ -16,6 +16,9 @@
 
 ## ✨ Overview
 
+> **📌 Based on MacCellular 1.0.0-rc.4**
+> This project is a derivative of [MacCellular 1.0.0-rc.4](https://github.com/yuexiazhuojiu-byte/MacCellular) (the open-source self-hosted SMS/phone gateway, formerly branded MacCellular). It reworks the macOS desktop app into a **self-hosted cellular gateway that runs on NAS / ARM Linux via Docker**. Upstream copyright and licensing: see [LICENSE](LICENSE), [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 NasAnySim is a **self-hosted cellular gateway** that runs on an ARM Linux NAS (fnOS / OpenMediaVault / Debian all work).
 
 Plug in a **DJI / BAIWANG 4G module** (Quectel-compatible AT) with a SIM card, and the gateway turns that SIM into:
@@ -23,6 +26,13 @@ Plug in a **DJI / BAIWANG 4G module** (Quectel-compatible AT) with a SIM card, a
 > 📱 **Private phone** · 💬 **SMS** · 🔔 **Incoming-call/SMS notifications** · 🎙 **Call recording**
 
 Reachable from any modern browser (iOS PWA, Android, desktop) — no need to carry a second phone.
+
+**Key changes vs. MacCellular 1.0.0-rc.4**:
+- 🖥 **Platform**: macOS desktop → Docker container on Linux/ARM NAS (single image)
+- 🌐 **Remote access**: bundled Caddy HTTPS reverse proxy + Web PWA (iOS/Android/desktop), no Tailscale required
+- 🔐 **Auth**: persistent cookie auth + forced password change on first login + terminal reset
+- 📞 **Calls**: WebRTC + TURN relay (incl. TLS 5349) through NAT, call recordings stored on the NAS
+- 📡 **SMS**: multi-device sync + Web Push notifications
 
 <div align="center">
 

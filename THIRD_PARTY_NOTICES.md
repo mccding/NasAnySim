@@ -1,27 +1,36 @@
 # Third-Party Notices
 
-NasAnySim is an independently designed self-hosted phone product built in this
-repository. It also contains or depends on earlier and third-party work whose
+NasAnySim is a derivative work based on **MacCellular 1.0.0-rc.4**
+(https://github.com/yuexiazhuojiu-byte/MacCellular), with substantial
+modifications for deployment as a self-hosted cellular gateway on NAS/ARM
+Linux. It also contains or depends on earlier and third-party work whose
 copyright and licenses remain unchanged.
 
-## VoHive / DJOneHub foundation
+## Upstream: MacCellular (VoHive/DJOneHub lineage)
 
-Earlier USB, AT, eSIM and modem-management code derives from VoHive/DJOneHub.
+The mobile-web remote gateway, communication architecture, media integration,
+storage and deployment work derives from MacCellular (in turn derived from
+VoHive/DJOneHub). The upstream `LICENSE` and `NOTICE` are preserved in this
+repository **and inside the published container image**.
+
 The repository root `LICENSE` and this required notice must remain present:
 
 ```text
 Required Notice: Copyright iniwex5 (https://github.com/iniwex5/vohive)
 ```
 
-## MaVo host-side work
+## MaVo host-side work & module-side runtime
 
 The macOS UAC probing and QDC507 audio-host integration use ideas and host-side
 source adapted from [MaVo](https://github.com/moluncn/mavo), under the MIT
 License. The retained license is [`licenses/MaVo-LICENSE`](licenses/MaVo-LICENSE).
 
-NasAnySim does not include or redistribute MaVo's module-side kernel modules or
-ARM helper. Users who prepare a compatible module-side runtime obtain it from
-its original source under that source's terms.
+The published container image **includes the module-side voice runtime**
+(`/opt/nasany/module-voice/`: `qdc507_aprv3.ko`, `qdc507_voice.ko`,
+`mavo-pcm-bridge.armv7`) so a DJI/BAIWANG QDC507 module works out of the box.
+These files are pushed to the module over ADB at deployment time. They derive
+from work distributed with MaVo / the module vendor and are used under their
+original terms; see `licenses/MaVo-LICENSE`.
 
 ## Pion WebRTC
 

@@ -16,6 +16,9 @@
 
 ## ✨ 项目简介
 
+> **📌 基于 MacCellular 1.0.0-rc.4 修改**
+> 本项目是 [MacCellular 1.0.0-rc.4](https://github.com/yuexiazhuojiu-byte/MacCellular)（原来自名 MacCellular 的开源自托管短信/电话网关）的衍生作品。将其从 macOS 桌面端改造为可在 **NAS / ARM Linux 上以 Docker 自托管**的蜂窝网关。上游版权与许可见 [LICENSE](LICENSE)、[NOTICE](NOTICE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnOS / OpenMediaVault / Debian 均可）。
 
 插入 **DJI / 百旺（BAIWANG）4G 模块**（兼容高通 AT 指令）和一张 SIM 卡，网关就把这张 SIM 变成：
@@ -23,6 +26,13 @@ NasAnySim 是一个**自托管蜂窝网关**，运行在 ARM Linux NAS 上（fnO
 > 📱 **私人电话** · 💬 **短信收发** · 🔔 **来电/短信通知** · 🎙 **通话录音**
 
 任何现代浏览器（iOS PWA、Android、桌面）都能访问，无需随身携带第二台手机。
+
+**相对 MacCellular 1.0.0-rc.4 的主要修改**：
+- 🖥 **运行平台**：macOS 桌面端 → Linux/ARM NAS 上的 Docker 容器（单容器镜像）
+- 🌐 **远程访问**：自带 Caddy HTTPS 反代 + Web PWA（iOS/Android/桌面浏览器均可），无需 Tailscale
+- 🔐 **认证**：持久化 Cookie 认证 + 首次登录强制改密 + 终端重置
+- 📞 **通话**：WebRTC + TURN 中继（含 TLS 5349）穿透 NAT，通话录音存于 NAS
+- 📡 **短信**：多端同步 + Web Push 通知
 
 <div align="center">
 
