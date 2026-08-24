@@ -147,12 +147,12 @@ SSH into the NAS and run:
 # Reset the login password
 docker exec nasany-sms /usr/local/bin/djonehub-macos \
   -remote-reset-password "YOUR_NEW_PASSWORD" \
-  -remote-reset-password-file /var/lib/maccellular/auth/password-hash
+  -remote-reset-password-file /var/lib/nasany/auth/password-hash
 
 # Reset the login username
 docker exec nasany-sms /usr/local/bin/djonehub-macos \
   -remote-reset-username "YOUR_NEW_USERNAME" \
-  -remote-reset-username-file /var/lib/maccellular/auth/username
+  -remote-reset-username-file /var/lib/nasany/auth/username
 ```
 
 > ⚠️ After resetting, **restart the container** (`docker compose restart nasany-sms`) for the new credentials to take effect.

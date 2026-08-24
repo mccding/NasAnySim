@@ -194,7 +194,7 @@ services:
       - ${TTY}:${TTY}
       - /dev/snd:/dev/snd
     volumes:
-      - ./data:/var/lib/maccellular
+      - ./data:/var/lib/nasany
       - ./turn-secret:/run/secrets/turn-secret:ro
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
@@ -205,9 +205,9 @@ services:
       - ${TTY}
       - -phone-relay-runtime
       - -sms-store
-      - /var/lib/maccellular
+      - /var/lib/nasany
       - -call-history-store
-      - /var/lib/maccellular/call-history.json
+      - /var/lib/nasany/call-history.json
       - -remote-listen
       - 127.0.0.1:7578
       - -remote-host
@@ -215,16 +215,16 @@ services:
       - -remote-control
       - -remote-allow-loopback
       - -remote-recordings-dir
-      - /var/lib/maccellular/call-recordings
+      - /var/lib/nasany/call-recordings
       - -remote-cookie-auth
       - -remote-cookie-auth-password-hash-file
-      - /var/lib/maccellular/auth/password-hash
+      - /var/lib/nasany/auth/password-hash
       - -remote-cookie-auth-username-file
-      - /var/lib/maccellular/auth/username
+      - /var/lib/nasany/auth/username
       - -remote-cookie-auth-initialized-file
-      - /var/lib/maccellular/auth/initialized
+      - /var/lib/nasany/auth/initialized
       - -remote-cookie-auth-secret-file
-      - /var/lib/maccellular/auth/session-secret
+      - /var/lib/nasany/auth/session-secret
       - -remote-media-turn-host
       - ${DOMAIN}
       - -remote-media-turn-secret-file
@@ -235,11 +235,11 @@ services:
       - -remote-rescue-hangup
       - -remote-push
       - -remote-push-vapid-private-key-file
-      - /var/lib/maccellular/vapid-private-key
+      - /var/lib/nasany/vapid-private-key
       - -remote-push-vapid-subject
       - mailto:${EMAIL:-admin@${DOMAIN}}
       - -remote-push-subscriptions-file
-      - /var/lib/maccellular/push/subscriptions.json
+      - /var/lib/nasany/push/subscriptions.json
       - -web-console
 
   nasany-turn:

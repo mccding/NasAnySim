@@ -149,12 +149,12 @@ SSH 到 NAS 后执行：
 # 重置登录密码
 docker exec nasany-sms /usr/local/bin/djonehub-macos \
   -remote-reset-password "你的新密码" \
-  -remote-reset-password-file /var/lib/maccellular/auth/password-hash
+  -remote-reset-password-file /var/lib/nasany/auth/password-hash
 
 # 重置登录用户名
 docker exec nasany-sms /usr/local/bin/djonehub-macos \
   -remote-reset-username "你的新用户名" \
-  -remote-reset-username-file /var/lib/maccellular/auth/username
+  -remote-reset-username-file /var/lib/nasany/auth/username
 ```
 
 > ⚠️ 重置后**重启容器**（`docker compose restart nasany-sms`）让新凭据生效。
