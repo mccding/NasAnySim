@@ -142,7 +142,8 @@ https://your-domain:7577/remote/     # default login admin / admin
 | Port | Protocol | Purpose | Forward? |
 |------|----------|---------|----------|
 | `7577` | TCP | HTTPS PWA | ✅ required |
-| `3478` | UDP | TURN voice relay | ✅ required |
+| `3478` | UDP | TURN voice relay (relay setup) | ✅ required |
+| `49160-49167` | UDP | TURN audio data (relay port range) | ✅ required |
 | `5349` | TCP | TURN TLS (enabled when certs detected) | optional |
 
 ### Common cases
@@ -171,6 +172,7 @@ bash deploy.sh your-domain.example.com you@example.com /dev/ttyACM0
 | `7578` | 127.0.0.1 | Remote gateway | reverse-proxy target, not public |
 | `7576` | 127.0.0.1 | Local console | loopback diagnostics |
 | `3478` | public (TURN) | TURN UDP/TCP | WebRTC voice relay (required for calls) |
+| `49160-49167` | public (TURN) | TURN relay data | WebRTC audio transport (required for calls; missing → "cannot reach public relay") |
 | `5349` | public (TURN) | TURN TLS | WebRTC voice relay (encrypted) |
 
 ---
