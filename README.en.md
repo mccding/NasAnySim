@@ -85,17 +85,47 @@ Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### One-command deploy (recommended)
 
-**No script editing needed** — download the script and put your domain + email in the command:
+**No script editing needed** — just two small steps.
+
+#### Step 1: Get a domain (free, ~2 minutes)
+
+Home broadband public IPs are dynamic (they change), so you need a free domain whose IP follows automatically. **DuckDNS is free, no registration fees**:
+
+1. Open https://www.duckdns.org
+2. Sign in with **GitHub / Google / Twitter** (any works)
+3. In the "domains" field enter your subdomain (e.g. `mynas`), click **add domain**
+4. The page shows your **token** (a string shaped like `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`, kind of a key — save it)
+
+> If you run on a cloud/VPS with your own domain, skip this step and use your domain.
+
+#### Step 2: Download the script and run one command
 
 ```bash
 # 1. Download the deploy script
 curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
 
-# 2. One-command deploy (replace "your-domain.example.com"; email auto-issues the HTTPS cert)
-bash deploy.sh your-domain.example.com you@example.com
+# 2. One-command deploy (replace "your-domain"; email issues the HTTPS cert)
+bash deploy.sh your-domain.com you@example.com
 ```
 
-The script automatically: creates data dirs, generates secrets, configures the Caddy reverse proxy + HTTPS cert, and starts the gateway and TURN relay. **The only thing you do on your router** is forward two ports (see table below).
+**The script auto-detects your network and picks the best cert path**:
+
+- ☁️ **Cloud / VPS** (port 80 open to the internet) → automatically issues the cert via **Let's Encrypt HTTP-01**, no token needed, no interaction.
+- 🏠 **Home NAS** (port 80 blocked by the ISP) → the script detects port 80 is unreachable and **stops to ask for your token**:
+
+```
+Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip):
+```
+
+Paste the token you saved in Step 1 and press Enter — the script issues a real cert via **DNS-01**.
+
+> **Don't want to paste it every time?** (optional) Put it in a `.env` file and the script reads it automatically without asking:
+> ```bash
+> echo "NASANY_DUCKDNS_TOKEN=your-token" > .env
+> bash deploy.sh your-domain.com you@example.com
+> ```
+
+**The script automatically**: creates data dirs → generates secrets → issues the HTTPS cert → starts the gateway + TURN relay + HTTPS reverse proxy (three containers) → generates `duckdns-update.sh` and installs a 5-minute cron so the domain follows your IP changes.
 
 When done, open:
 
@@ -104,6 +134,8 @@ https://your-domain:7577/remote/     # default login admin / admin
 ```
 
 > ⚠️ **Change the default password immediately after first login.**
+>
+> **Deploy without a token?** Cloud/VPS just needs domain + email (Let's Encrypt). Home NAS without a token can't get a real cert — the script clearly asks for one and **refuses to continue otherwise** (no risky self-signed fallback).
 
 ### Ports to forward on your router
 
@@ -116,47 +148,6 @@ https://your-domain:7577/remote/     # default login admin / admin
 ### Common cases
 
 **Already running Caddy/Nginx?** Nothing to do — the script auto-detects that 7577 is in use, skips its own Caddy, and your proxy is untouched. A ready-made site config is written to `./caddy/Caddyfile` for you to copy into your proxy.
-
-**Use DuckDNS free domain + auto HTTPS cert?** (Recommended for home broadband with a public IP but port 80 blocked by your ISP)
-
-> **Why DuckDNS?** Home broadband public IPs are dynamic (they change). You need a free domain whose IP follows automatically. DuckDNS is free, no registration fees, works worldwide.
-
-#### Step 1: Create a DuckDNS domain
-
-1. Open https://www.duckdns.org
-2. Sign in with **GitHub / Google / Twitter** (any works)
-3. In the "domains" field enter your subdomain (e.g. `mynas`), click **add domain**
-4. The page shows your **token** (a string — save it; it's like a key)
-
-#### Step 2: One command, the script auto-detects your environment
-
-```bash
-bash deploy.sh mynas.duckdns.org your@email.com
-```
-
-- **Cloud / VPS** (port 80 open to the internet) → the script detects this and automatically issues the cert via **Let's Encrypt HTTP-01**, no interaction needed.
-- **Home NAS** (port 80 blocked by the ISP) → the script detects port 80 is unreachable and **stops to ask for your DuckDNS token**:
-
-```
-Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip):
-```
-
-Just paste the token you copied from duckdns.org and press Enter — the script then issues a real cert via **DNS-01**.
-
-In both cases the script also starts the gateway, the TURN relay and the HTTPS reverse proxy (three containers), generates `duckdns-update.sh` and installs a 5-minute cron so the domain follows your IP changes.
-
-> **Where to find the token**: after signing in at https://www.duckdns.org, the "Token" field on the page is your token (~36 chars, shaped `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
->
-> **Don't want to paste it every time?** (optional) Put it in a `.env` file and the script reads it automatically without asking:
-> ```bash
-> echo "NASANY_DUCKDNS_TOKEN=your-token" > .env
-> bash deploy.sh mynas.duckdns.org your@email.com
-> ```
-
-#### Step 3: If you have no DuckDNS token
-
-- **Cloud / VPS** (port 80 open): domain + email is enough — the script uses Let's Encrypt automatically.
-- **Home NAS** (port 80 blocked) without a token: no real cert is possible, so the script clearly asks for a token and **refuses to continue otherwise** (no risky self-signed fallback).
 
 **Module not on `/dev/ttyUSB2`?** (Most users can ignore this.)
 
