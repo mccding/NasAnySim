@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="brand/icon.png" width="96" alt="NasAnySim 图标">
+
 # 📡 NasAnySim
 
 **把插在 NAS 上的 4G 模块，变成你的私人电话与短信网关**
