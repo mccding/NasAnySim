@@ -120,13 +120,26 @@ https://your-domain:7577/remote/     # default login admin / admin
 
 #### Step 2: The one-command script does the rest
 
-Pass the DuckDNS token to the script as an env var:
+Give the DuckDNS token to the script. **Either way works**:
+
+**Option A: prepend the token to the command** (copy the format, change only `your-token`):
 
 ```bash
 NASANY_DUCKDNS_TOKEN=your-token bash deploy.sh mynas.duckdns.org your@email.com
 ```
+Easy rule: put `NASANY_DUCKDNS_TOKEN=` followed by your token (separated by a space), then write `bash deploy.sh domain email` as usual.
 
-The script will automatically:
+**Option B: put it in a `.env` file** (harder to mistype):
+
+```bash
+# Create a .env file in this folder with any editor, one line:
+NASANY_DUCKDNS_TOKEN=your-token
+
+# Then run normally (the script reads .env automatically):
+bash deploy.sh mynas.duckdns.org your@email.com
+```
+
+Both are identical in effect. The script will automatically:
 - 🎫 Issue a **real HTTPS cert** via acme.sh + DuckDNS DNS-01 (no port 80 needed, works on home broadband)
 - 🔄 Generate `duckdns-update.sh` (calls the DuckDNS API to update your public IP)
 - ⏰ Install a **5-minute cron job** so the domain follows IP changes automatically

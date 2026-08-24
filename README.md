@@ -120,13 +120,26 @@ https://你的域名:7577/remote/     # 默认账号 admin / admin
 
 #### 第 2 步：一键脚本帮你搞定剩下的一切
 
-部署时把 DuckDNS token 作为环境变量传给脚本：
+部署时把 DuckDNS 的 token 交给脚本。**两种方式任选**：
+
+**方式 A：把 token 写在命令最前面**（照抄格式，只改 `你的token`）：
 
 ```bash
 NASANY_DUCKDNS_TOKEN=你的token bash deploy.sh mynas.duckdns.org your@email.com
 ```
+简单记：`NASANY_DUCKDNS_TOKEN=` 后面跟你的 token（空格隔开），再照常写 `bash deploy.sh 域名 邮箱`。
 
-脚本会自动：
+**方式 B：写进 `.env` 文件**（更不容易抄错）：
+
+```bash
+# 用任意编辑器在本目录建一个 .env 文件，写上这一行：
+NASANY_DUCKDNS_TOKEN=你的token
+
+# 然后正常执行（脚本会自动读 .env）：
+bash deploy.sh mynas.duckdns.org your@email.com
+```
+
+两种方式效果完全一样。脚本会自动：
 - 🎫 用 **acme.sh + DuckDNS DNS-01** 申请**真 HTTPS 证书**（不依赖 80 端口，家庭宽带可用）
 - 🔄 生成 `duckdns-update.sh`（调用 DuckDNS 官方接口更新你的公网 IP）
 - ⏰ 安装 **5 分钟一次的定时任务**，IP 变了自动更新域名解析
