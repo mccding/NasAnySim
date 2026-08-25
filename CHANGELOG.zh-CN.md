@@ -1,13 +1,14 @@
 # 更新记录
 
-## 1.0.0-rc.5 — 2026-08-25
+## 1.0.0-rc.6 — 2026-08-25
 
-- 完成 Linux amd64 与 ARM64 清洁环境一键部署验收；
-- 增加 `bash deploy.sh --detect-tty`，首次部署先检查架构、串口、USB、ALSA 和 ADB；
-- 固化 host ADB loopback、启动等待和 bootstrap 自动重试；
-- 固化 coturn `nobody` 权限、TURN TLS 5349 和配置变更后的强制重建；
-- 非交互 SSH/CI 不再因 DuckDNS/acme.sh 询问导致异常退出；
-- 内置 DuckDNS DNS-01 证书与动态公网 IP 更新：生成 owner-only updater，并安装 5 分钟 cron；
-- 明确公网端口、内部端口、路由器转发和安全边界；
-- 重排中英文 README，补充端口、DuckDNS、故障排查和双架构验收文档；
-- 公开仓库保持文档/部署资源边界，不包含源码、证书、token、私钥或客户机运行数据。
+- 将公开 `deploy/deploy.sh` 字节级恢复为 ARM64 与 amd64 最后成功部署的同一份脚本；
+- 双端实测脚本 SHA-256：`bd9f02a8ff7d5cd6871467f394d45967e446978e770a31c9c5a32b2b9ec104de`；
+- 将部署契约测试同步恢复为当时实际通过的版本；
+- 删除 README 中对测试后新增功能的错误承诺，包括 `--detect-tty`、Caddy opt-out、DuckDNS updater 固定 `700` 权限；
+- 文档改为区分“已双端实测行为”和“需要后续双端重测的改进”；
+- 保留中英文专业文档、端口说明、故障排查、验收记录和原有打赏码。
+
+## 1.0.0-rc.5 — 不推荐使用
+
+该标签在双端验收之后又修改了 `deploy.sh`，但没有重新执行 ARM64 与 amd64 清洁部署，因此不能沿用“双端一次通过”的验证声明。标签作为历史记录保留，不移动、不覆盖；请使用 `rc.6` 或当前 `main`。

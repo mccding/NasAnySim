@@ -1,43 +1,41 @@
 # DuckDNS: certificates and dynamic public IP
 
-The one-command script includes two DuckDNS capabilities:
+The published `deploy/deploy.sh` is byte-for-byte identical to the scripts used for the final successful ARM64 and amd64 deployments. Two DuckDNS paths were exercised:
 
-1. **DNS-01 certificates:** use a DuckDNS token to obtain a Let's Encrypt certificate when public port 80 is unavailable;
-2. **Dynamic-IP updates:** generate a protected updater and install a five-minute cron entry after deployment.
-
-You do not download another DuckDNS updater or write a cron job manually.
+1. **DNS-01 certificates:** use a DuckDNS token to obtain a Let's Encrypt certificate when public HTTP-01 is unavailable;
+2. **Dynamic-IP updates:** generate an updater after deployment and install a five-minute cron entry.
 
 ## Supplying the token
 
-An interactive terminal can run the normal command and paste the token when prompted:
-
-```bash
-bash deploy.sh <domain> <email> <TTY>
-```
-
-SSH, CI, and other non-TTY environments should create `.env` in the deployment directory:
+An interactive terminal prompts when a token is needed. SSH, CI, and other non-TTY environments should create `.env` in a private deployment directory:
 
 ```bash
 umask 077
 printf '%s\n' 'NASANY_DUCKDNS_TOKEN=[REDACTED]' > .env
 chmod 600 .env
-bash deploy.sh <domain> <email> <TTY>
+bash deploy.sh <DuckDNS-domain> <email> <TTY>
 ```
 
-Replace `[REDACTED]` locally only. Never upload `.env` to GitHub.
+Replace `[REDACTED]` only on the customer host. Never commit `.env`.
 
-## How the built-in updater works
+## Exact dual-host-tested behavior
 
-The updater is enabled only when the domain matches `*.duckdns.org` and a token is supplied. The script then:
+When both the domain and `NASANY_DUCKDNS_TOKEN` are non-empty, the script:
 
 - creates `duckdns-update.sh` in the deployment directory;
-- sets it to owner-only mode (`700`);
-- sends DuckDNS an empty `ip=` by default so DuckDNS detects the request source IP;
-- uses `NASANY_PUBLIC_IP` when you explicitly need to override source-IP detection;
-- installs a `*/5 * * * *` cron entry;
-- appends the response to `/var/log/duckdns-update.log`.
+- marks it executable with `chmod +x`;
+- sends DuckDNS an empty `ip=` by default so DuckDNS detects the request source address;
+- uses `NASANY_PUBLIC_IP` when explicitly supplied;
+- installs a `*/5 * * * *` crontab entry;
+- appends responses to `/var/log/duckdns-update.log`.
 
-Check it with:
+Both acceptance hosts had `crontab`. The verified script does not contain a continue-with-warning path when `crontab` is unavailable, so check a new host first:
+
+```bash
+command -v crontab
+```
+
+Verify the installed updater:
 
 ```bash
 ls -l duckdns-update.sh
@@ -45,24 +43,20 @@ crontab -l | grep duckdns-update
 ./duckdns-update.sh
 ```
 
-If `crontab` is unavailable, the script keeps the owner-only updater and prints a warning; use the host's existing scheduler to invoke it.
+## Boundaries
 
-## Security
+- use `NASANY_DUCKDNS_TOKEN` only with a `*.duckdns.org` domain;
+- for a non-DuckDNS domain, do not pass a DuckDNS token; use that DNS provider's DDNS mechanism;
+- the tested script uses `chmod +x`; it does not promise mode `700`. The exact mode depends on the private deployment directory and system `umask`;
+- both clean acceptance runs used root in a private deployment directory;
+- normally leave `NASANY_PUBLIC_IP` empty; set it only when a proxy or TUN breaks source-address detection;
+- `.env`, `duckdns-update.sh`, certificates, and private keys contain secrets and must not be uploaded or pasted into public issues;
+- rotate the DuckDNS token immediately if it was exposed.
 
-The updater URL contains the token. Therefore:
+## Verified script fingerprint
 
-- never paste `duckdns-update.sh` into an issue, chat, or public log;
-- keep its `700` mode;
-- keep `.env`, certificates, private keys, and the updater inside the deployment directory;
-- rotate the token in DuckDNS if it was exposed;
-- for a non-DuckDNS domain, use that DNS provider's DDNS mechanism instead.
-
-## Explicit public IP
-
-Normally `NASANY_PUBLIC_IP` is not needed. Set it only when a proxy, TUN, or unusual egress causes DuckDNS to see the wrong source address:
-
-```bash
-NASANY_PUBLIC_IP=<your-public-ip> bash deploy.sh <domain> <email> <TTY>
+```text
+SHA-256 bd9f02a8ff7d5cd6871467f394d45967e446978e770a31c9c5a32b2b9ec104de
 ```
 
-Do not put a real public IP or token in public documentation or commits.
+Any later script change—including permission hardening, no-crontab compatibility, new flags, or auto-detection—requires another clean ARM64 and amd64 deployment before it can inherit the “dual-host verified” claim.

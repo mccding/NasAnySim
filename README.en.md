@@ -48,23 +48,16 @@ NasAnySim is a self-hosted cellular gateway. Plug a DJI / BAIWANG (Quectel-compa
 | Domain | A domain pointing to the host's public IP; DuckDNS is recommended for home broadband |
 | Privileges | Root or working `sudo` for first-time host ADB and serial setup |
 
-### Step 1: detect the USB port, architecture, and audio devices
+### Step 1: identify the actual serial port
 
-Do not assume every host uses `/dev/ttyUSB2`. Run:
+The current dual-host-tested version does **not** provide a `--detect-tty` subcommand. Do not assume every host uses `/dev/ttyUSB2`; inspect the customer host first:
 
 ```bash
-bash deploy.sh --detect-tty
+uname -m
+ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 ```
 
-The read-only check lists:
-
-- host architecture (`arm64` or `amd64`);
-- `ttyUSB` / `ttyACM` devices, VID:PID, and stable `udev` path when available;
-- 2c7c:0125 / Quectel-compatible USB devices;
-- ALSA capture and playback devices;
-- current ADB transports.
-
-It prints a serial candidate. If several ports are present, confirm which one is the AT port and pass that path as the third argument.
+The DJI / BAIWANG modules used for this acceptance exposed the AT port as `/dev/ttyUSB2`. Numbering can change with multiple modules or a different USB topology. Confirm the AT port and pass it as the third argument.
 
 ### Step 2: download and deploy
 
@@ -73,7 +66,7 @@ mkdir -p nasanysim && cd nasanysim
 curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
 chmod 700 deploy.sh
 
-# Replace /dev/ttyUSB2 with the port reported by --detect-tty
+# Replace /dev/ttyUSB2 with the customer's actual AT port
 bash deploy.sh nasanysim.duckdns.org you@example.com /dev/ttyUSB2
 ```
 
@@ -84,7 +77,7 @@ You do **not** need to edit the script, manually chmod coturn files, copy certif
 3. stops ModemManager when present so it cannot hold the module port;
 4. generates data keys, TURN configuration, and the module bootstrap capability;
 5. applies the directory, configuration, and certificate permissions required by coturn's unprivileged `nobody` process;
-6. pulls `mccdingding/nasany-sms:arm64` or `:amd64` for the detected architecture;
+6. pulls `mccdingding/nasany-sms:latest` on ARM64 or `:amd64` on amd64;
 7. starts the gateway, TURN, and Caddy containers and force-recreates TURN after certificate changes;
 8. retries module bootstrap until the backend and module runtime report ready.
 
@@ -117,15 +110,12 @@ bash deploy.sh nasanysim.duckdns.org you@example.com /dev/ttyUSB2
 
 ## Built-in DuckDNS dynamic-IP update
 
-Dynamic-IP maintenance for DuckDNS is built into the one-command script. **You do not download another updater or write a cron job yourself.** It activates when:
-
-- the domain matches `*.duckdns.org`; and
-- `NASANY_DUCKDNS_TOKEN` is supplied through the prompt, `.env`, or the environment.
+Dynamic-IP maintenance for DuckDNS is built into the dual-host-tested script. **You do not download another updater or write a cron job yourself.** It activates when a domain and `NASANY_DUCKDNS_TOKEN` are both supplied; use that token only with a DuckDNS domain.
 
 The deployment script then:
 
 1. generates `duckdns-update.sh` in the deployment directory;
-2. sets it to owner-only mode (`700`) because it contains the token in its private URL;
+2. marks it executable; its exact mode depends on the deployment directory and system `umask`;
 3. leaves `ip=` empty by default so DuckDNS detects the public IP from the request source;
 4. uses an explicitly supplied `NASANY_PUBLIC_IP` when you need to override source-IP detection;
 5. installs a five-minute crontab entry;
@@ -135,11 +125,11 @@ Check the installed updater:
 
 ```bash
 crontab -l | grep duckdns-update
-ls -l duckdns-update.sh       # should be owner-only (700)
+ls -l duckdns-update.sh
 ./duckdns-update.sh            # optional manual run
 ```
 
-If you use a non-DuckDNS domain, the built-in updater is intentionally not installed; use that provider's DDNS mechanism instead. See [DuckDNS details](docs/DUCKDNS.en.md) for the complete flow.
+For a non-DuckDNS domain, do not supply a DuckDNS token to this script; use that provider's DDNS mechanism instead. See [DuckDNS details](docs/DUCKDNS.en.md) for the exact tested behavior.
 
 > **Security:** `.env`, `duckdns-update.sh`, certificates, and private keys are local secrets. Do not upload or paste them into public issues. Rotate a DuckDNS token if it has been exposed.
 
@@ -166,19 +156,13 @@ Forwarding `7577` without the `49160-49167/UDP` relay range often produces a wor
 
 ## Existing Caddy/Nginx or a port conflict
 
-Bundled Caddy is enabled by default. If the host already owns `7577`, do not let two proxies compete for the same port:
-
-```bash
-NASANY_SKIP_CADDY=1 bash deploy.sh your-domain.com you@example.com /dev/ttyUSB2
-```
-
-The script writes `caddy/Caddyfile`; integrate that site into the existing Caddy/Nginx configuration. Never expose `7576`, `7578`, or `5037` as a workaround.
+The current dual-host-tested script starts bundled Caddy and requires host port `7577` to be free. `NASANY_SKIP_CADDY` is not a public interface covered by the dual-host acceptance. If another proxy already owns `7577`, do not run the current one-command path or expose internal ports as a workaround; complete and retest a separate proxy integration first.
 
 ## Images and architecture
 
 | Host architecture | Docker Hub image |
 |---|---|
-| ARM64 / AArch64 | `mccdingding/nasany-sms:arm64` |
+| ARM64 / AArch64 | `mccdingding/nasany-sms:latest` |
 | amd64 / x86_64 | `mccdingding/nasany-sms:amd64` |
 
 The script selects the matching image. Do not mix ARM64 and amd64 images. The runtime is distributed as a closed prebuilt image; this repository does not contain source code, Go caches, customer certificates, or build contexts.
@@ -192,7 +176,7 @@ The script selects the matching image. Do not mix ARM64 and amd64 images. The ru
 
 ## Troubleshooting
 
-- **No serial port:** run `bash deploy.sh --detect-tty` again and confirm the module USB connection and AT port;
+- **No serial port:** inspect `/dev/ttyUSB*` and `/dev/ttyACM*`, then confirm the module USB connection and AT port;
 - **Webpage unavailable:** check `7577/TCP`, DNS, and Caddy logs;
 - **Webpage works but relay fails:** check `3478/UDP`, `49160-49167/UDP`, and preferably `5349/TCP` with valid certificates;
 - **Certificate issuance fails:** use a DuckDNS token and DNS-01 on home broadband instead of repeatedly retrying HTTP-01;
@@ -203,7 +187,7 @@ See [Troubleshooting](docs/TROUBLESHOOTING.en.md) for the full checklist.
 
 ## Verification status
 
-This release candidate has passed clean ARM64 and amd64 acceptance: Docker Hub image pull, DNS-01 certificates, TURN TLS 5349, loopback host ADB, module bootstrap/voice runtime, and real phone/SMS end-to-end checks. The evidence summary is in [Dual-architecture verification](docs/VERIFICATION.en.md).
+The current `deploy/deploy.sh` has been restored byte-for-byte to the identical script that passed clean ARM64 and amd64 acceptance. Its SHA-256 is `bd9f02a8ff7d5cd6871467f394d45967e446978e770a31c9c5a32b2b9ec104de`. Docker Hub image pull, DNS-01 certificates, TURN TLS 5349, loopback host ADB, module bootstrap/voice runtime, and real phone/SMS end-to-end checks all passed. See [Dual-architecture verification](docs/VERIFICATION.en.md).
 
 ## License and acknowledgements
 

@@ -3,8 +3,8 @@
 ## Collect the baseline first
 
 ```bash
-bash deploy.sh --detect-tty
 uname -m
+ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 docker ps -a --filter name=nasany
 ss -lntup | grep -E ':(5037|5349|7576|7577|7578)\b'
 ```
@@ -22,13 +22,7 @@ docker logs --tail=200 nasany-caddy
 docker ps --filter name=nasany-caddy
 ```
 
-If another proxy already owns `7577`, run:
-
-```bash
-NASANY_SKIP_CADDY=1 bash deploy.sh <domain> <email> <TTY>
-```
-
-Then integrate the generated `caddy/Caddyfile` into the existing proxy.
+The dual-host-tested script requires `7577` to be free; `NASANY_SKIP_CADDY` is not part of the accepted public interface. If another proxy owns the port, do not run the current one-command path until the proxy integration has been separately retested.
 
 ## The webpage works but calls cannot reach the public relay
 
@@ -58,11 +52,10 @@ The script automatically sets the coturn directory to `755`, the config to `644`
 ## The module serial port is missing
 
 ```bash
-bash deploy.sh --detect-tty
 ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 ```
 
-For multi-port modules, do not rely on the number alone. Use VID:PID and `ID_PATH` from the detector and pass the actual AT port as the third argument.
+For multi-port modules, do not rely on the number alone. Confirm the actual AT port and pass it as the third argument. The current tested script has no `--detect-tty` subcommand.
 
 ## ADB errors
 
@@ -94,4 +87,4 @@ crontab -l | grep duckdns-update
 cat /var/log/duckdns-update.log
 ```
 
-The updater is generated only for `*.duckdns.org` domains when a token is supplied during deployment. Non-DuckDNS domains use their own provider's DDNS mechanism. If the token was exposed, rotate it before regenerating the local `.env` and deployment directory.
+The current dual-host-tested script generates the updater whenever both domain and token are non-empty, so use a DuckDNS token only with a `*.duckdns.org` domain. Both acceptance hosts had `crontab`. If the token was exposed, rotate it before regenerating the local `.env` and deployment directory.

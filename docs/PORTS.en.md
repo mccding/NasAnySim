@@ -33,10 +33,4 @@ The deployment script refuses to continue when ADB is listening beyond loopback.
 
 ## Existing reverse proxy
 
-If an existing Caddy/Nginx instance already owns `7577`, explicitly skip bundled Caddy:
-
-```bash
-NASANY_SKIP_CADDY=1 bash deploy.sh <domain> <email> <TTY>
-```
-
-Integrate the generated `caddy/Caddyfile` site logic into the existing proxy. In every layout, keep `7576`, `7578`, and `5037` off the public Internet.
+The current dual-host-tested script starts bundled Caddy and requires `7577` to be free. `NASANY_SKIP_CADDY` is not a public interface covered by this acceptance. If another proxy owns `7577`, do not use the current one-command path until a separate proxy integration has been completed and retested. In every layout, keep `7576`, `7578`, and `5037` off the public Internet.

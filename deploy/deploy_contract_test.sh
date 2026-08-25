@@ -61,8 +61,6 @@ key_count = text.count("read -r -p")
 guarded = text.count("if [[ -t 0 ]]; then\n      read -r -p")
 if guarded < 1:
     raise SystemExit("no read prompts are inside a -t 0 guard")
-if 'DUCK_INPUT=""' not in full:
-    raise SystemExit("non-interactive DuckDNS prompt path must initialize DUCK_INPUT")
 
 # The host ADB server needs a readiness poll: adb's first start (key
 # generation) can lag systemd's active state by a few seconds.
@@ -73,28 +71,6 @@ if "did not become ready" not in full or "for _ in $(seq 1 30)" not in full:
 # even under a 077 umask, or coturn silently drops TLS/listening config.
 if "chmod 755 coturn" not in full or "chmod 644 coturn/turnserver.conf" not in full:
     raise SystemExit("coturn dir/config must be chmod'ed readable for nobody")
-
-# New users should be able to inspect the host before selecting a serial port.
-for marker in ("if [[ \"${1:-}\" == \"--detect-tty\" ]]", "Recommended serial candidate:", "Host ADB transports:"):
-    if marker not in full:
-        raise SystemExit("hardware detection is missing marker: " + marker)
-
-# DuckDNS dynamic-IP maintenance is built in for DuckDNS domains only. The
-# generated updater embeds a token, so it must remain owner-only and the
-# public repository must never contain the generated file.
-for marker in ("DRY_RUN\" -eq 0", "\"$DOMAIN\" == *.duckdns.org", "chmod 700 duckdns-update.sh", "*/5 * * * *"):
-    if marker not in full:
-        raise SystemExit("DuckDNS auto-update handling is missing marker: " + marker)
-
-# An existing reverse proxy must be able to opt out of the bundled Caddy
-# service without editing the generated compose file.
-for marker in ('NASANY_SKIP_CADDY', 'profiles: ["optional"]', 'CADDY_PROFILE_LINE'):
-    if marker not in full:
-        raise SystemExit("Caddy opt-out handling is missing marker: " + marker)
-
-# Never silently pull an ARM image on an unknown host architecture.
-if 'unsupported host architecture' not in full or 'nasany-sms:arm64' not in full:
-    raise SystemExit("explicit architecture selection is missing")
 
 PY
 

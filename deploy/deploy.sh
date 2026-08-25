@@ -2,7 +2,6 @@
 # ============================================================
 # NasAnySim one-click deploy
 # Usage: bash deploy.sh [domain] [email] [serial-port] [--dry-run]
-#   bash deploy.sh --detect-tty
 #   bash deploy.sh nasany.example.com you@example.com
 #   bash deploy.sh nasany.example.com you@example.com /dev/ttyACM0
 #   bash deploy.sh nasany.example.com --dry-run  (config only)
@@ -19,72 +18,6 @@ set -euo pipefail
 # .env can set NASANY_DOMAIN, NASANY_EMAIL, NASANY_TTY, NASANY_DUCKDNS_TOKEN
 if [[ -f .env ]]; then
   set -a; source .env; set +a
-fi
-
-detect_tty() {
-  local arch port info vendor model path found=0 recommended=""
-  arch="$(uname -m 2>/dev/null || echo unknown)"
-  case "$arch" in
-    x86_64|amd64) arch_label="amd64" ;;
-    aarch64|arm64) arch_label="arm64" ;;
-    *) arch_label="$arch" ;;
-  esac
-  echo "NasAnySim hardware check"
-  echo "  Host architecture: $arch_label ($arch)"
-  echo "  USB module candidates:"
-  for port in /dev/ttyUSB* /dev/ttyACM*; do
-    [[ -e "$port" ]] || continue
-    found=1
-    info=""
-    if command -v udevadm >/dev/null 2>&1; then
-      info="$(udevadm info --query=property --name="$port" 2>/dev/null || true)"
-    fi
-    vendor="$(printf '%s\n' "$info" | awk -F= '$1 == "ID_VENDOR_ID" {print $2; exit}')"
-    model="$(printf '%s\n' "$info" | awk -F= '$1 == "ID_MODEL_ID" {print $2; exit}')"
-    path="$(printf '%s\n' "$info" | awk -F= '$1 == "ID_PATH" {print $2; exit}')"
-    printf '    %-16s VID:PID=%s:%s' "$port" "${vendor:-unknown}" "${model:-unknown}"
-    [[ -n "$path" ]] && printf '  path=%s' "$path"
-    printf '\n'
-    [[ -z "$recommended" ]] && recommended="$port"
-    [[ "$port" == "/dev/ttyUSB2" ]] && recommended="$port"
-  done
-  if [[ "$found" -eq 0 ]]; then
-    echo "    (no ttyUSB/ttyACM device found)"
-  fi
-  if command -v lsusb >/dev/null 2>&1; then
-    echo "  Matching USB devices (2c7c:0125 / Quectel-compatible):"
-    lsusb 2>/dev/null | grep -iE '2c7c|0125|quectel|baiwang' || echo "    (none reported by lsusb)"
-  fi
-  echo "  ALSA capture devices:"
-  if command -v arecord >/dev/null 2>&1; then
-    arecord -l 2>/dev/null || echo "    (none or permission denied)"
-  else
-    echo "    arecord not installed"
-  fi
-  echo "  ALSA playback devices:"
-  if command -v aplay >/dev/null 2>&1; then
-    aplay -l 2>/dev/null || echo "    (none or permission denied)"
-  else
-    echo "    aplay not installed"
-  fi
-  echo "  Host ADB transports:"
-  if command -v adb >/dev/null 2>&1; then
-    adb -L tcp:localhost:5037 devices -l 2>/dev/null || true
-  else
-    echo "    adb not installed yet (deploy.sh installs it when supported)"
-  fi
-  echo ""
-  if [[ -n "$recommended" ]]; then
-    echo "Recommended serial candidate: $recommended"
-    echo "Next: bash deploy.sh <domain> <email> $recommended"
-  else
-    echo "No serial candidate found. Connect the module and run this check again."
-  fi
-}
-
-if [[ "${1:-}" == "--detect-tty" ]]; then
-  detect_tty
-  exit 0
 fi
 
 DOMAIN="${1:-${NASANY_DOMAIN:-}}"
@@ -299,8 +232,7 @@ echo "DOMAIN: $DOMAIN"
 #   1) user-provided certs in ./caddy/{fullchain,privkey}.pem  -> use them
 #   2) port 80 publicly reachable (cloud/VPS)                   -> Let's Encrypt HTTP-01
 #   3) port 80 blocked (home broadband) + DuckDNS token         -> acme.sh DNS-01
-#   4) otherwise                                                -> fail with the
-#                                                                  required next step
+#   4) otherwise                                                -> self-signed (works anyway)
 TLS_LINE=""
 
 # (1) User-provided certs first.
@@ -321,7 +253,6 @@ fi
 # use it; otherwise the script simply ASKS for it — the user only ever runs
 # `bash deploy.sh domain email` and pastes the token when prompted.
 if [[ -z "${TLS_LINE:-}" && -z "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
-  DUCK_INPUT=""
   if [[ "$DRY_RUN" -eq 0 ]]; then
     echo ""
     echo "DuckDNS is the easiest way to get a real HTTPS cert on home broadband"
@@ -576,8 +507,10 @@ echo "OK: caddy/Caddyfile"
 # explains how to integrate with an existing proxy. Set NASANY_SKIP_CADDY=1 to
 # explicitly exclude it.
 CADDY_START="true"
+CADDY_PROFILE='["default"]'
 if [[ "${NASANY_SKIP_CADDY:-0}" == "1" ]]; then
   CADDY_START="false"
+  CADDY_PROFILE='["optional"]'
   echo "NOTE: NASANY_SKIP_CADDY=1 — skipping the bundled caddy container."
 elif command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE ':(7577)\b'; then
   echo "WARN: port 7577 already in use. The bundled caddy container may not be"
@@ -589,25 +522,14 @@ elif command -v netstat >/dev/null 2>&1 && netstat -tln 2>/dev/null | grep -qE '
   echo "      site block from ./caddy/Caddyfile and set NASANY_SKIP_CADDY=1."
 fi
 # Detect host architecture → choose the matching image tag.
+# arm64 (most NAS) → :latest (arm64); x86_64 → :amd64.
 ARCH="$(uname -m 2>/dev/null || echo unknown)"
-case "$ARCH" in
-  x86_64|amd64)
-    NASANY_IMAGE="mccdingding/nasany-sms:amd64"
-    echo "ARCH: x86_64 (amd64) — using amd64 image"
-    ;;
-  aarch64|arm64)
-    NASANY_IMAGE="mccdingding/nasany-sms:arm64"
-    echo "ARCH: aarch64 (arm64) — using arm64 image"
-    ;;
-  *)
-    echo "ERROR: unsupported host architecture: $ARCH (supported: amd64, arm64)" >&2
-    exit 1
-    ;;
-esac
-
-CADDY_PROFILE_LINE=""
-if [[ "$CADDY_START" != "true" ]]; then
-  CADDY_PROFILE_LINE='    profiles: ["optional"]'
+if [[ "$ARCH" == "x86_64" || "$ARCH" == "amd64" ]]; then
+  NASANY_IMAGE="mccdingding/nasany-sms:amd64"
+  echo "ARCH: x86_64 (amd64) — using amd64 image"
+else
+  NASANY_IMAGE="mccdingding/nasany-sms:latest"
+  echo "ARCH: $ARCH — using arm64 image"
 fi
 
 cat > docker-compose.yaml <<EOF
@@ -684,7 +606,6 @@ services:
       - NET_BIND_SERVICE
 
   caddy:
-${CADDY_PROFILE_LINE}
     image: caddy:2-alpine
     container_name: nasany-caddy
     restart: unless-stopped
@@ -703,7 +624,7 @@ echo "OK: docker-compose.yaml"
 # DuckDNS IP auto-update (home broadband: IP changes, domain must follow).
 # Only when a token + domain are provided. Uses DuckDNS's free HTTP API:
 #   https://www.duckdns.org/update?domains=<d>&token=<t>&ip=   (ip empty = auto)
-if [[ "$DRY_RUN" -eq 0 && -n "${NASANY_DUCKDNS_TOKEN:-}" && "$DOMAIN" == *.duckdns.org ]]; then
+if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" && -n "$DOMAIN" ]]; then
   NOREDIR_D=''
   if [[ "$DOMAIN" == *".duckdns.org" ]]; then NOREDIR_D="${DOMAIN%.duckdns.org}"; else NOREDIR_D="$DOMAIN"; fi
   # Preferred: leave ip= empty → DuckDNS detects this host's real public IP
@@ -721,21 +642,15 @@ if [[ "$DRY_RUN" -eq 0 && -n "${NASANY_DUCKDNS_TOKEN:-}" && "$DOMAIN" == *.duckd
 # (standard dynamic-IP behaviour), unless a fixed public IP was baked in.
 curl -fsS --max-time 15 "${UPDATE_URL}" >> /var/log/duckdns-update.log 2>&1 || true
 EOF
-  # The generated file contains the DuckDNS token in its private URL. Keep
-  # the updater executable only by the deployment owner; never commit it.
-  chmod 700 duckdns-update.sh
+  chmod +x duckdns-update.sh
   echo "OK: duckdns-update.sh (${NOREDIR_D}.duckdns.org)"
 
   # Install a 5-minute cron if not already present (DuckDNS recommends <=5min).
-  if command -v crontab >/dev/null 2>&1; then
-    if ! crontab -l 2>/dev/null | grep -q "duckdns-update"; then
-      ( crontab -l 2>/dev/null; echo "*/5 * * * * $(pwd)/duckdns-update.sh >/dev/null 2>&1" ) | crontab -
-      echo "OK: installed 5-min cron for DuckDNS IP update"
-    else
-      echo "NOTE: DuckDNS cron already installed"
-    fi
+  if ! crontab -l 2>/dev/null | grep -q "duckdns-update"; then
+    ( crontab -l 2>/dev/null; echo "*/5 * * * * $(pwd)/duckdns-update.sh >/dev/null 2>&1" ) | crontab -
+    echo "OK: installed 5-min cron for DuckDNS IP update"
   else
-    echo "WARN: crontab is unavailable; run ./duckdns-update.sh from a scheduler you control."
+    echo "NOTE: DuckDNS cron already installed"
   fi
 fi
 

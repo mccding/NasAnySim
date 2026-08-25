@@ -48,23 +48,16 @@ NasAnySim 是一个面向自托管场景的蜂窝网关。将 DJI / 百旺（BAI
 | 域名 | 指向主机公网 IP 的域名；家庭宽带推荐 DuckDNS |
 | 权限 | 首次部署需要 root 或可用的 `sudo`，脚本会自动处理主机 ADB 与串口占用 |
 
-### 第一步：检测 USB 串口、架构和音频设备
+### 第一步：确认实际串口
 
-不要直接假定每台主机都是 `/dev/ttyUSB2`。先运行：
+当前双端实测版本**没有** `--detect-tty` 子命令。不要直接假定每台主机都是 `/dev/ttyUSB2`，先在客户机查看实际设备：
 
 ```bash
-bash deploy.sh --detect-tty
+uname -m
+ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 ```
 
-脚本会只读检查并列出：
-
-- 主机架构（`arm64` / `amd64`）
-- `ttyUSB` / `ttyACM` 设备、VID:PID 和稳定的 `udev` 路径（若系统提供）
-- 2c7c:0125 / Quectel-compatible USB 设备
-- ALSA 采集与播放设备
-- 当前 ADB transport
-
-它会给出一个串口候选值。若存在多个串口，请按实际硬件确认 AT 口，再将该路径作为第三个参数传给部署脚本。
+本次验证的 DJI / 百旺模块 AT 口为 `/dev/ttyUSB2`；多模块或不同 USB 拓扑下编号可能变化。确认实际 AT 口后，把它作为第三个参数传给部署脚本。
 
 ### 第二步：下载脚本并部署
 
@@ -73,7 +66,7 @@ mkdir -p nasanysim && cd nasanysim
 curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
 chmod 700 deploy.sh
 
-# 把 /dev/ttyUSB2 换成 --detect-tty 输出的实际 AT 串口
+# 把 /dev/ttyUSB2 换成客户机的实际 AT 串口
 bash deploy.sh nasanysim.duckdns.org your@email.com /dev/ttyUSB2
 ```
 
@@ -84,7 +77,7 @@ bash deploy.sh nasanysim.duckdns.org your@email.com /dev/ttyUSB2
 3. 停止会抢占模块的 ModemManager（若系统存在）；
 4. 生成数据密钥、TURN 配置和模块 bootstrap capability；
 5. 自动处理 coturn `nobody` 用户所需的目录、配置和证书可读权限；
-6. 按架构拉取 `mccdingding/nasany-sms:arm64` 或 `:amd64`；
+6. ARM64 拉取 `mccdingding/nasany-sms:latest`，amd64 拉取 `:amd64`；
 7. 启动网关、TURN、Caddy 三个容器，并强制重建 TURN 以应用新证书；
 8. 自动重试模块 bootstrap，直到后端和模块运行时都报告 ready。
 
@@ -117,15 +110,12 @@ bash deploy.sh nasanysim.duckdns.org your@email.com /dev/ttyUSB2
 
 ## 内置 DuckDNS 自动更新
 
-DuckDNS 动态 IP 更新已经内置在一键脚本里，**不需要用户另外下载 updater 或自己写 cron**。当满足以下条件时自动启用：
-
-- 域名是 `*.duckdns.org`；
-- 部署时提供了 `NASANY_DUCKDNS_TOKEN`（交互输入、`.env` 或环境变量均可）。
+DuckDNS 动态 IP 更新已经内置在双端实测脚本里，**不需要用户另外下载 updater 或自己写 cron**。当部署时同时提供域名和 `NASANY_DUCKDNS_TOKEN` 时启用；该 token 只应与 DuckDNS 域名一起使用。
 
 部署脚本会：
 
 1. 在当前部署目录生成 `duckdns-update.sh`；
-2. 将 updater 权限设为 `700`，因为该文件包含 token，只有部署用户可执行/读取；
+2. 将 updater 标记为可执行；实际权限受部署目录和系统 `umask` 影响；
 3. 默认使用 DuckDNS 的 `ip=` 源地址检测，让 DuckDNS 根据请求来源更新公网 IP；
 4. 如果明确设置 `NASANY_PUBLIC_IP`，则固定使用该 IP；
 5. 写入每 5 分钟执行一次的 crontab；
@@ -135,11 +125,11 @@ DuckDNS 动态 IP 更新已经内置在一键脚本里，**不需要用户另外
 
 ```bash
 crontab -l | grep duckdns-update
-ls -l duckdns-update.sh       # 应为 owner-only（700）
+ls -l duckdns-update.sh
 ./duckdns-update.sh            # 可手工触发一次
 ```
 
-`NASANY_PUBLIC_IP` 只在你明确需要绕过代理/TUN 的源地址识别时设置；否则留空即可。自有域名（非 DuckDNS）不会错误安装 DuckDNS updater，应使用该域名服务商自己的 DDNS 机制。完整流程见 [DuckDNS 专项说明](docs/DUCKDNS.zh-CN.md)。
+`NASANY_PUBLIC_IP` 只在你明确需要绕过代理/TUN 的源地址识别时设置；否则留空即可。非 DuckDNS 域名不要向该脚本提供 DuckDNS token，应使用域名服务商自己的 DDNS 机制。完整流程见 [DuckDNS 专项说明](docs/DUCKDNS.zh-CN.md)。
 
 > **安全提示**：`.env`、`duckdns-update.sh`、证书和私钥都属于本机敏感文件。不要上传、复制给他人或粘贴到公开 issue；如果 token 曾经暴露，请在 DuckDNS 控制台轮换。
 
@@ -166,19 +156,13 @@ ls -l duckdns-update.sh       # 应为 owner-only（700）
 
 ## 已有 Caddy/Nginx 或端口冲突
 
-默认部署包含 Caddy 容器。如果宿主机的 `7577` 已由现有反向代理占用，不要让两个服务抢同一个端口：
-
-```bash
-NASANY_SKIP_CADDY=1 bash deploy.sh 你的域名 your@email.com /dev/ttyUSB2
-```
-
-脚本会生成 `caddy/Caddyfile`，可将站点逻辑整合到你现有的 Caddy/Nginx。不要因此把 `7576`、`7578` 或 `5037` 直接转发到公网。
+当前双端实测脚本默认启动自带 Caddy，并要求宿主机 `7577` 可用。`NASANY_SKIP_CADDY` 不是本次双端验收通过的公开接口；如果客户机已有反向代理占用 `7577`，不要直接运行当前一键脚本，也不要把内部端口暴露公网，应先完成单独的代理整合与复测。
 
 ## 架构与镜像
 
 | 主机架构 | Docker Hub 镜像 |
 |---|---|
-| ARM64 / AArch64 | `mccdingding/nasany-sms:arm64` |
+| ARM64 / AArch64 | `mccdingding/nasany-sms:latest` |
 | amd64 / x86_64 | `mccdingding/nasany-sms:amd64` |
 
 脚本自动选择架构，不能在 ARM64 主机手工使用 amd64 镜像，也不能反过来使用。运行时镜像为闭源预编译分发；本仓库不会包含源码、Go 缓存、客户机证书或构建上下文。
@@ -192,7 +176,7 @@ NASANY_SKIP_CADDY=1 bash deploy.sh 你的域名 your@email.com /dev/ttyUSB2
 
 ## 故障排查
 
-- **没有串口**：重新运行 `bash deploy.sh --detect-tty`，确认模块 USB 连接和实际 AT 串口；
+- **没有串口**：检查 `/dev/ttyUSB*`、`/dev/ttyACM*`，确认模块 USB 连接和实际 AT 串口；
 - **网页打不开**：检查 `7577/TCP`、域名解析和 Caddy 容器日志；
 - **网页能开但无法连接中继**：检查 `3478/UDP`、`49160-49167/UDP`，并优先确认 `5349/TCP` 与证书；
 - **证书申请失败**：家庭宽带使用 DuckDNS token 走 DNS-01，不要反复重试 HTTP-01；
@@ -203,7 +187,7 @@ NASANY_SKIP_CADDY=1 bash deploy.sh 你的域名 your@email.com /dev/ttyUSB2
 
 ## 验证状态
 
-本次发布候选已完成 ARM64 与 amd64 清洁环境验收：从 Docker Hub 拉取镜像、DNS-01 证书、TURN TLS 5349、host ADB loopback、模块 bootstrap/语音运行时，以及真实电话/短信闭环均已验证。详细记录见 [双架构验收记录](docs/VERIFICATION.zh-CN.md)。
+当前 `deploy/deploy.sh` 已字节级恢复为 ARM64 与 amd64 清洁环境实际通过的同一份脚本，SHA-256 为 `bd9f02a8ff7d5cd6871467f394d45967e446978e770a31c9c5a32b2b9ec104de`。从 Docker Hub 拉取镜像、DNS-01 证书、TURN TLS 5349、host ADB loopback、模块 bootstrap/语音运行时，以及真实电话/短信闭环均已验证。详细记录见 [双架构验收记录](docs/VERIFICATION.zh-CN.md)。
 
 ## 许可证与致谢
 

@@ -3,8 +3,8 @@
 ## 先收集基础信息
 
 ```bash
-bash deploy.sh --detect-tty
 uname -m
+ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 docker ps -a --filter name=nasany
 ss -lntup | grep -E ':(5037|5349|7576|7577|7578)\b'
 ```
@@ -22,13 +22,7 @@ docker logs --tail=200 nasany-caddy
 docker ps --filter name=nasany-caddy
 ```
 
-如果宿主机已有代理占用 `7577`，使用：
-
-```bash
-NASANY_SKIP_CADDY=1 bash deploy.sh <域名> <邮箱> <TTY>
-```
-
-然后将生成的 `caddy/Caddyfile` 整合到已有代理。
+当前双端实测脚本要求 `7577` 未被占用；`NASANY_SKIP_CADDY` 不属于双端验收接口。如果已有代理占用端口，请先停止，不要直接执行当前一键部署，代理整合需单独复测。
 
 ## 网页能打开，但提示无法连接公网中继
 
@@ -58,11 +52,10 @@ ls -l coturn/turnserver.conf coturn/fullchain.pem coturn/privkey.pem
 ## 找不到模块串口
 
 ```bash
-bash deploy.sh --detect-tty
 ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 ```
 
-多串口模块不要只看编号；使用检测输出的 VID:PID 和 `ID_PATH` 判断，并将实际 AT 口作为第三个参数。
+多串口模块不要只看编号，应确认实际 AT 口并将其作为第三个参数。当前实测脚本没有 `--detect-tty` 子命令。
 
 ## ADB 错误
 
@@ -94,4 +87,4 @@ crontab -l | grep duckdns-update
 cat /var/log/duckdns-update.log
 ```
 
-只有 `*.duckdns.org` 域名且部署时提供 token 才会生成 updater。自有域名不会安装 DuckDNS updater。若 token 曾暴露，先轮换 token，再重新生成本地 `.env` 和部署目录。
+当前双端实测脚本在“域名和 token 均非空”时生成 updater，因此只应把 DuckDNS token 与 `*.duckdns.org` 域名一起使用。双端验收主机都安装了 `crontab`。若 token 曾暴露，先轮换 token，再重新生成本地 `.env` 和部署目录。
