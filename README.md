@@ -217,3 +217,17 @@ NASANY_SKIP_CADDY=1 bash deploy.sh 你的域名 your@email.com /dev/ttyUSB2
 - Pion WebRTC、libusb、coturn 及其他运行时依赖。
 
 完整声明见 [NOTICE](NOTICE) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+---
+
+## 💖 支持本项目
+
+如果本项目对你有帮助，欢迎支持它的开发：
+
+<div align="center">
+
+![支持本项目](brand/support-qr.png)
+
+*微信扫码支持 · Scan to support*
+
+</div>

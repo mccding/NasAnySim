@@ -217,3 +217,17 @@ Thanks to:
 - Pion WebRTC, libusb, coturn, and the other runtime dependencies.
 
 See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for complete notices.
+
+---
+
+## 💖 Support
+
+If this project is useful to you, consider supporting its development:
+
+<div align="center">
+
+![Support](brand/support-qr.png)
+
+*Scan to support*
+
+</div>
