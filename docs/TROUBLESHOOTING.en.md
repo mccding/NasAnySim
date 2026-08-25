@@ -78,6 +78,30 @@ fuser -v /dev/ttyUSB2
 lsof /dev/ttyUSB2 2>/dev/null
 ```
 
+## Forgot the username or password
+
+The current image has no permanent account-settings control in the web UI. Use the container's built-in one-shot reset both to disable `admin / admin` after a fresh deployment and to recover a forgotten credential:
+
+```bash
+read -r -p 'New username: ' NASANY_NEW_USERNAME
+read -r -s -p 'New password (8–128 characters): ' NASANY_NEW_PASSWORD
+printf '\n'
+
+if docker exec nasany-sms /usr/local/bin/djonehub-macos \
+  -remote-reset-username "$NASANY_NEW_USERNAME" \
+  -remote-reset-username-file /var/lib/nasany/auth/username \
+  -remote-reset-password "$NASANY_NEW_PASSWORD" \
+  -remote-reset-password-file /var/lib/nasany/auth/password-hash; then
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  docker restart nasany-sms
+else
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  echo 'Credential update failed; the container was not restarted.' >&2
+fi
+```
+
+After the restart, sign in with the new credential and verify that `admin / admin` is rejected. The one-shot reset process is expected to exit immediately; without restarting the main container, the running process will continue using the old credentials held in memory. Never put a real password directly in a command, Compose file, `.env`, or public issue; the built-in reset interface briefly receives it in a one-shot process argument, so use only a trusted NAS administration shell.
+
 ## DuckDNS is not updating
 
 ```bash

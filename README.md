@@ -87,7 +87,40 @@ bash deploy.sh nasanysim.duckdns.org your@email.com /dev/ttyUSB2
 https://你的域名:7577/remote/
 ```
 
-新部署默认登录为 `admin / admin`。首次登录后请立即修改密码。
+新部署默认登录为 `admin / admin`。只用它完成首次确认，随后立即按下一节修改用户名和密码。
+
+## 首次登录后修改用户名和密码
+
+当前镜像的网页没有常驻的账号设置入口。首次部署后请按以下步骤操作：
+
+1. 打开 `https://你的域名:7577/remote/`，使用 `admin / admin` 登录一次，确认服务可以访问；
+2. SSH 登录运行 NasAnySim 的 NAS；
+3. 运行下面的命令。它调用容器内置的一次性重置功能，不需要手工编辑认证文件：
+
+```bash
+read -r -p '新用户名：' NASANY_NEW_USERNAME
+read -r -s -p '新密码（8–128 个字符）：' NASANY_NEW_PASSWORD
+printf '\n'
+
+if docker exec nasany-sms /usr/local/bin/djonehub-macos \
+  -remote-reset-username "$NASANY_NEW_USERNAME" \
+  -remote-reset-username-file /var/lib/nasany/auth/username \
+  -remote-reset-password "$NASANY_NEW_PASSWORD" \
+  -remote-reset-password-file /var/lib/nasany/auth/password-hash; then
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  docker restart nasany-sms
+else
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  echo '账号或密码修改失败，容器未重启。' >&2
+fi
+```
+
+4. 等待 `nasany-sms` 恢复运行，然后退出网页中的旧会话，使用新用户名和新密码重新登录；
+5. 再尝试一次 `admin / admin`，应当登录失败。这可以确认默认凭据已经失效。
+
+> **安全提示**：不要把真实密码直接写在命令、Compose、`.env`、截图或公开 issue 中。上面的 `read -s` 不会回显密码，也不会把明文密码直接写入 shell history；但内置重置接口仍会在一次性进程参数中短暂接收密码，因此只能在可信的 NAS 管理终端执行。重置进程执行完会立即退出，这是正常行为，随后必须重启 `nasany-sms` 才会加载新凭据。
+
+如果忘记了修改后的账号或密码，请使用同一组命令重新设置；更多说明见[故障排查](docs/TROUBLESHOOTING.zh-CN.md#忘记用户名或密码)。
 
 ## HTTPS 与证书选择
 
@@ -170,7 +203,7 @@ ls -l duckdns-update.sh
 ## 手机使用
 
 1. 用 Safari 或 Chrome 打开 `https://你的域名:7577/remote/`；
-2. 登录并修改默认密码；
+2. 登录后按“首次登录后修改用户名和密码”一节停用默认凭据；
 3. iPhone 选择“分享 → 添加到主屏幕”，Android 可使用浏览器菜单安装 PWA；
 4. 首次通话前确认路由器已转发 TURN 端口范围。
 

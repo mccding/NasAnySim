@@ -87,7 +87,40 @@ Open this URL when it finishes:
 https://your-domain:7577/remote/
 ```
 
-A fresh deployment starts with `admin / admin`. Change the password immediately.
+A fresh deployment starts with `admin / admin`. Use it only for the first access check, then immediately change both the username and password as described below.
+
+## Change the username and password after first login
+
+The current image does not expose a permanent account-settings control in the web UI. After a fresh deployment:
+
+1. open `https://your-domain:7577/remote/` and sign in once with `admin / admin` to confirm that the service is reachable;
+2. SSH into the NAS that runs NasAnySim;
+3. run the commands below. They call the container's built-in one-shot credential reset and do not require editing authentication files by hand:
+
+```bash
+read -r -p 'New username: ' NASANY_NEW_USERNAME
+read -r -s -p 'New password (8–128 characters): ' NASANY_NEW_PASSWORD
+printf '\n'
+
+if docker exec nasany-sms /usr/local/bin/djonehub-macos \
+  -remote-reset-username "$NASANY_NEW_USERNAME" \
+  -remote-reset-username-file /var/lib/nasany/auth/username \
+  -remote-reset-password "$NASANY_NEW_PASSWORD" \
+  -remote-reset-password-file /var/lib/nasany/auth/password-hash; then
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  docker restart nasany-sms
+else
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  echo 'Credential update failed; the container was not restarted.' >&2
+fi
+```
+
+4. wait for `nasany-sms` to be running again, leave the old browser session, and sign in with the new username and password;
+5. verify that `admin / admin` is rejected. This confirms that the default credential is no longer active.
+
+> **Security:** never put the real password directly in a command, Compose file, `.env`, screenshot, or public issue. `read -s` hides the input and keeps the plaintext out of shell history; however, the built-in reset interface still receives the password briefly in a one-shot process argument, so run it only from a trusted NAS administration shell. The reset process exits immediately by design, and `nasany-sms` must then be restarted to load the new credentials.
+
+If you later forget the username or password, run the same reset again. See [Troubleshooting](docs/TROUBLESHOOTING.en.md#forgot-the-username-or-password).
 
 ## HTTPS and certificate paths
 
@@ -170,7 +203,7 @@ The script selects the matching image. Do not mix ARM64 and amd64 images. The ru
 ## Mobile use
 
 1. Open `https://your-domain:7577/remote/` in Safari or Chrome;
-2. log in and change the default password;
+2. follow “Change the username and password after first login” to disable the default credential;
 3. on iPhone choose Share → **Add to Home Screen**; Android can install the PWA from the browser menu;
 4. before the first call, confirm the TURN port range is forwarded.
 

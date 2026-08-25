@@ -78,6 +78,30 @@ fuser -v /dev/ttyUSB2
 lsof /dev/ttyUSB2 2>/dev/null
 ```
 
+## 忘记用户名或密码
+
+当前镜像的网页没有常驻账号设置入口。首次部署需要停用 `admin / admin`，或后来忘记账号/密码时，都应使用容器内置的一次性重置功能：
+
+```bash
+read -r -p '新用户名：' NASANY_NEW_USERNAME
+read -r -s -p '新密码（8–128 个字符）：' NASANY_NEW_PASSWORD
+printf '\n'
+
+if docker exec nasany-sms /usr/local/bin/djonehub-macos \
+  -remote-reset-username "$NASANY_NEW_USERNAME" \
+  -remote-reset-username-file /var/lib/nasany/auth/username \
+  -remote-reset-password "$NASANY_NEW_PASSWORD" \
+  -remote-reset-password-file /var/lib/nasany/auth/password-hash; then
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  docker restart nasany-sms
+else
+  unset NASANY_NEW_USERNAME NASANY_NEW_PASSWORD
+  echo '账号或密码修改失败，容器未重启。' >&2
+fi
+```
+
+重启后用新账号登录，并确认 `admin / admin` 已无法登录。一次性重置程序执行后立即退出是正常行为；如果不重启主容器，正在运行的进程仍会使用内存中的旧凭据。不要把真实密码直接写进命令、Compose、`.env` 或公开 issue；内置重置接口会在一次性进程参数中短暂接收密码，只能在可信的 NAS 管理终端执行。
+
 ## DuckDNS 没有自动更新
 
 ```bash
