@@ -4,284 +4,216 @@
 
 # NasAnySim
 
-**Turn a 4G module plugged into your NAS into a private phone & SMS gateway — reachable from any browser.**
+**Turn a 4G module attached to your NAS into a private phone and SMS gateway reachable from your phone browser.**
 
-[简体中文](README.md) · [English](README.en.md)
+[简体中文](README.md) · [English](README.en.md) · [Changelog](CHANGELOG.en.md)
 
-![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)
-![Platform](https://img.shields.io/badge/Platform-ARM64%20%2F%20x86_64-green.svg)
-![Version](https://img.shields.io/badge/Version-1.0.0--rc.4-lightgrey.svg)
+[![Platform](https://img.shields.io/badge/platform-ARM64%20%7C%20amd64-16a085?style=flat-square)](https://hub.docker.com/r/mccdingding/nasany-sms)
+[![Docker Hub](https://img.shields.io/docker/pulls/mccdingding/nasany-sms?logo=docker&style=flat-square)](https://hub.docker.com/r/mccdingding/nasany-sms)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2563eb?style=flat-square)](LICENSE)
+[![Verification](https://img.shields.io/badge/verification-clean%20dual--arch%20deploy-10b981?style=flat-square)](docs/VERIFICATION.en.md)
 
 </div>
 
-## ✨ Overview
-
-> **📌 Based on MacCellular 1.0.0-rc.4**
-> This project is a derivative of [MacCellular 1.0.0-rc.4](https://github.com/yuexiazhuojiu-byte/MacCellular) (the open-source self-hosted SMS/phone gateway, formerly branded MacCellular). It reworks the macOS desktop app into a **self-hosted cellular gateway that runs on NAS / ARM Linux via Docker**. Upstream copyright and licensing: see [LICENSE](LICENSE), [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-NasAnySim is a **self-hosted cellular gateway** that runs on an ARM Linux NAS (fnOS / OpenMediaVault / Debian all work).
-
-Plug in a **DJI / BAIWANG 4G module** (Quectel-compatible AT) with a SIM card, and the gateway turns that SIM into:
-
-> 📱 **Private phone** · 💬 **SMS** · 🔔 **Incoming-call/SMS notifications** · 🎙 **Call recording**
-
-Reachable from any modern browser (iOS PWA, Android, desktop) — no need to carry a second phone.
-
-**Key changes vs. MacCellular 1.0.0-rc.4**:
-- 🖥 **Platform**: macOS desktop → Docker container on Linux/ARM NAS (single image)
-- 🌐 **Remote access**: bundled Caddy HTTPS reverse proxy + Web PWA (iOS/Android/desktop), no Tailscale required
-- 🔐 **Auth**: persistent cookie auth + forced password change on first login + terminal reset
-- 📞 **Calls**: WebRTC + TURN relay (incl. TLS 5349) through NAT, call recordings stored on the NAS
-- 📡 **SMS**: multi-device sync + Web Push notifications
+> **Distribution boundary:** this public repository contains documentation, the deployment script, and release resources only. The runtime is delivered as a prebuilt Docker image. Source code, certificates, keys, and customer-machine runtime data are not published.
 
 <div align="center">
 
 ![NasAnySim architecture](brand/architecture-en.svg)
 
-*How it works: phone → NAS gateway → 4G module & SIM*
+*Phone browser → HTTPS/Caddy → gateway → 4G module and physical SIM*
 
 </div>
 
----
+## Overview
 
-## 🚀 Features
+NasAnySim is a self-hosted cellular gateway. Plug a DJI / BAIWANG (Quectel-compatible AT) 4G module into a Linux NAS and use its SIM for SMS and voice calls from a modern browser.
 
-| Feature | Description |
-|---------|-------------|
-| 📱 SMS | Full conversation UI, durable store, multi-device sync |
-| 📞 Voice calls | WebRTC inbound/outbound, TURN relay for NAT traversal |
-| 🔔 Background push | Incoming call & SMS notifications even when the PWA is closed |
-| 🎙 Call recording | Recorded on the NAS, playable/deletable from the PWA |
-| 🔐 Secure auth | Persistent cookie auth, works behind Caddy forward_auth |
-| 🐳 One-command deploy | Single container (ARM64 / x86_64), `docker compose up` and go |
+- **SMS:** send, receive, store, and synchronize conversations;
+- **Voice:** WebRTC inbound/outbound calls, TURN relay, and call recording;
+- **Notifications:** incoming-call and SMS Web Push;
+- **Deployment:** ARM64 and amd64 images with automatic architecture selection;
+- **Access:** Caddy HTTPS and a mobile PWA, without requiring Tailscale.
 
----
+> This project is based on [MacCellular 1.0.0-rc.4](https://github.com/yuexiazhuojiu-byte/MacCellular) and related upstream work. Copyright, licensing, and required notices are in [LICENSE](LICENSE), [NOTICE](NOTICE), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## ⚖️ Licensing & Distribution
+## One-command deployment
 
-> **Closed-source · Image-only distribution · Free for personal use · No commercial resale**
+### Requirements
 
-This project ships as **prebuilt Docker images** (ARM64 / x86_64). The source is **not published**; the images are **free for personal use but not for commercial resale or redistribution**.
+| Item | Requirement |
+|---|---|
+| Host | Linux ARM64 or amd64 with Docker Compose installed |
+| Hardware | A supported 4G module, physical SIM, and USB connection; DJI / BAIWANG QDC507 voice path was verified |
+| Domain | A domain pointing to the host's public IP; DuckDNS is recommended for home broadband |
+| Privileges | Root or working `sudo` for first-time host ADB and serial setup |
 
-**Why closed-source:** the early USB/AT/eSIM/modem-management foundation derives from **VoHive / DJOneHub** ([github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)) under its own **"Changes and New Works License"**; the UAC probing and QDC507 audio path reference **MaVo** ([github.com/moluncn/mavo](https://github.com/moluncn/mavo), MIT) and similar public projects. These upstream obligations constrain how derivatives may be redistributed.
+### Step 1: detect the USB port, architecture, and audio devices
 
-Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-**Terms of use:** free for personal self-hosted use; **commercial resale, rebranding-for-sale, and redistribution of the images or their contents are prohibited.**
-
----
-
-## 📦 Deployment
-
-### You only need 3 things
-
-| # | What you do | Notes |
-|---|-------------|-------|
-| 1 | 🖥 **A NAS** (ARM64 or x86_64) | with Docker installed (fnOS / rk35xx verified) |
-| 2 | 📶 **A 4G module + SIM** | plugged into the NAS, enumerated as `/dev/ttyUSB2` |
-| 3 | 🌐 **A domain** | pointing to your home public IP (DDNS works too) |
-
-> ⚠️ **System setup**: **ModemManager must be disabled** (otherwise it steals the module serial port).
-
-### One-command deploy (recommended)
-
-**No script editing needed** — just two small steps.
-
-#### Step 1: Get a domain (free, ~2 minutes)
-
-Home broadband public IPs are dynamic (they change), so you need a free domain whose IP follows automatically. **DuckDNS is free, no registration fees**:
-
-1. Open https://www.duckdns.org
-2. Sign in with **GitHub / Google / Twitter** (any works)
-3. In the "domains" field enter your subdomain (e.g. `mynas`), click **add domain**
-4. The page shows your **token** (a string shaped like `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`, kind of a key — save it)
-
-> If you run on a cloud/VPS with your own domain, skip this step and use your domain.
-
-#### Step 2: Download the script and run one command
+Do not assume every host uses `/dev/ttyUSB2`. Run:
 
 ```bash
-# 1. Download the deploy script
+bash deploy.sh --detect-tty
+```
+
+The read-only check lists:
+
+- host architecture (`arm64` or `amd64`);
+- `ttyUSB` / `ttyACM` devices, VID:PID, and stable `udev` path when available;
+- 2c7c:0125 / Quectel-compatible USB devices;
+- ALSA capture and playback devices;
+- current ADB transports.
+
+It prints a serial candidate. If several ports are present, confirm which one is the AT port and pass that path as the third argument.
+
+### Step 2: download and deploy
+
+```bash
+mkdir -p nasanysim && cd nasanysim
 curl -fsSL https://raw.githubusercontent.com/mccding/NasAnySim/main/deploy/deploy.sh -o deploy.sh
+chmod 700 deploy.sh
 
-# 2. One-command deploy (replace "your-domain"; email issues the HTTPS cert)
-bash deploy.sh your-domain.com you@example.com
+# Replace /dev/ttyUSB2 with the port reported by --detect-tty
+bash deploy.sh nasanysim.duckdns.org you@example.com /dev/ttyUSB2
 ```
 
-**The script auto-detects your network and picks the best cert path**:
+You do **not** need to edit the script, manually chmod coturn files, copy certificates, or start ADB yourself. The script automatically:
 
-- ☁️ **Cloud / VPS** (port 80 open to the internet) → automatically issues the cert via **Let's Encrypt HTTP-01**, no token needed, no interaction.
-- 🏠 **Home NAS** (port 80 blocked by the ISP) → the script detects port 80 is unreachable and **stops to ask for your token**:
+1. checks Docker, host architecture, and the serial port;
+2. installs/starts a host ADB server bound only to `localhost:5037` and waits for readiness;
+3. stops ModemManager when present so it cannot hold the module port;
+4. generates data keys, TURN configuration, and the module bootstrap capability;
+5. applies the directory, configuration, and certificate permissions required by coturn's unprivileged `nobody` process;
+6. pulls `mccdingding/nasany-sms:arm64` or `:amd64` for the detected architecture;
+7. starts the gateway, TURN, and Caddy containers and force-recreates TURN after certificate changes;
+8. retries module bootstrap until the backend and module runtime report ready.
 
-```
-Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip):
-```
+Open this URL when it finishes:
 
-Paste the token you saved in Step 1 and press Enter — the script issues a real cert via **DNS-01**.
-
-> **Don't want to paste it every time?** (optional) Put it in a `.env` file and the script reads it automatically without asking:
-> ```bash
-> echo "NASANY_DUCKDNS_TOKEN=your-token" > .env
-> bash deploy.sh your-domain.com you@example.com
-> ```
-
-**The script automatically**: creates data dirs → generates secrets → issues the HTTPS cert → starts the gateway + TURN relay + HTTPS reverse proxy (three containers) → generates `duckdns-update.sh` and installs a 5-minute cron so the domain follows your IP changes.
-
-When done, open:
-
-```
-https://your-domain:7577/remote/     # default login admin / admin
+```text
+https://your-domain:7577/remote/
 ```
 
-> ⚠️ **Change the default password immediately after first login.**
->
-> **Deploy without a token?** Cloud/VPS just needs domain + email (Let's Encrypt). Home NAS without a token can't get a real cert — the script clearly asks for one and **refuses to continue otherwise** (no risky self-signed fallback).
+A fresh deployment starts with `admin / admin`. Change the password immediately.
 
-### Ports to forward on your router
+## HTTPS and certificate paths
 
-| Port | Protocol | Purpose | Forward? |
-|------|----------|---------|----------|
-| `7577` | TCP | HTTPS PWA | ✅ required |
-| `3478` | UDP | TURN voice relay (relay setup) | ✅ required |
-| `49160-49167` | UDP | TURN audio data (relay port range) | ✅ required |
-| `5349` | TCP | TURN TLS (enabled when certs detected) | optional |
+The script tries certificate paths in this order:
 
-> ⚠️ **After deployment, forward the public ports above on your router to the LAN IP of the host running NasAnySim.**
-> Calls require at least `7577/TCP`, `3478/UDP`, and `49160-49167/UDP`; if the TURN relay range is missing, the web page may load while calls fail with “cannot reach public relay”.
-> `7576` and `7578` are loopback-only and must **not** be forwarded to the Internet.
+1. existing user certificates at `caddy/fullchain.pem` and `caddy/privkey.pem`;
+2. Let's Encrypt HTTP-01 when the public HTTP conditions are available;
+3. Let's Encrypt DNS-01 with a DuckDNS token, which **does not require public port 80**;
+4. a clear failure if no real certificate path is available. It does not silently turn a production deployment into a browser-warning self-signed setup.
 
-### Common cases
-
-**Already running Caddy/Nginx?** Nothing to do — the script auto-detects that 7577 is in use, skips its own Caddy, and your proxy is untouched. A ready-made site config is written to `./caddy/Caddyfile` for you to copy into your proxy.
-
-**Module not on `/dev/ttyUSB2`?** (Most users can ignore this.)
-
-Only needed if the script prints `WARN: /dev/ttyUSB2 not found`. First check which serial port your module is on:
+HTTP-01 is often unavailable on home broadband. For that case use DuckDNS DNS-01. An interactive terminal can paste the token when prompted; SSH and CI runs should use `.env`:
 
 ```bash
-ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+umask 077
+printf '%s\n' 'NASANY_DUCKDNS_TOKEN=[REDACTED]' > .env
+chmod 600 .env
+# Replace [REDACTED] locally; never commit .env
+bash deploy.sh nasanysim.duckdns.org you@example.com /dev/ttyUSB2
 ```
 
-If it shows `/dev/ttyUSB2` (the default), nothing to do. If it's something else (e.g. `/dev/ttyACM0`), tell the script:
+## Built-in DuckDNS dynamic-IP update
+
+Dynamic-IP maintenance for DuckDNS is built into the one-command script. **You do not download another updater or write a cron job yourself.** It activates when:
+
+- the domain matches `*.duckdns.org`; and
+- `NASANY_DUCKDNS_TOKEN` is supplied through the prompt, `.env`, or the environment.
+
+The deployment script then:
+
+1. generates `duckdns-update.sh` in the deployment directory;
+2. sets it to owner-only mode (`700`) because it contains the token in its private URL;
+3. leaves `ip=` empty by default so DuckDNS detects the public IP from the request source;
+4. uses an explicitly supplied `NASANY_PUBLIC_IP` when you need to override source-IP detection;
+5. installs a five-minute crontab entry;
+6. appends the DuckDNS response to `/var/log/duckdns-update.log`.
+
+Check the installed updater:
 
 ```bash
-bash deploy.sh your-domain.example.com you@example.com /dev/ttyACM0
+crontab -l | grep duckdns-update
+ls -l duckdns-update.sh       # should be owner-only (700)
+./duckdns-update.sh            # optional manual run
 ```
 
-## 🔌 Ports
+If you use a non-DuckDNS domain, the built-in updater is intentionally not installed; use that provider's DDNS mechanism instead. See [DuckDNS details](docs/DUCKDNS.en.md) for the complete flow.
 
-| Port | Binding | Service | Purpose |
-|------|---------|---------|---------|
-| `7577` | public (Caddy) | HTTPS PWA | `https://your-domain:7577/remote/` |
-| `7578` | 127.0.0.1 | Remote gateway | reverse-proxy target, not public |
-| `7576` | 127.0.0.1 | Local console | loopback diagnostics |
-| `3478` | public (TURN) | TURN UDP/TCP | WebRTC voice relay (required for calls) |
-| `49160-49167` | public (TURN) | TURN relay data | WebRTC audio transport (required for calls; missing → "cannot reach public relay") |
-| `5349` | public (TURN) | TURN TLS | WebRTC voice relay (encrypted) |
+> **Security:** `.env`, `duckdns-update.sh`, certificates, and private keys are local secrets. Do not upload or paste them into public issues. Rotate a DuckDNS token if it has been exposed.
 
----
+## Public ports and security boundary
 
-## 🔐 Authentication
+Forward these public ports to the LAN address of the NasAnySim host:
 
-### First login
+| Port | Protocol | Purpose | Requirement |
+|---:|:---:|---|---|
+| `7577` | TCP | HTTPS PWA and remote gateway | required |
+| `3478` | UDP | TURN connection setup | required |
+| `49160-49167` | UDP | TURN relay media range | required for calls |
+| `5349` | TCP | TURN TLS | recommended when TLS is enabled |
 
-A fresh deployment seeds the default credential **`admin` / `admin`**.
+Keep these ports loopback-only and **do not forward them to the Internet**:
 
-> ⚠️ **Change the password immediately after your first login.** Do not leave the default credential on a public-facing deployment.
+| Port | Binding | Purpose |
+|---:|---|---|
+| `7576` | `127.0.0.1` | backend management/diagnostics |
+| `7578` | `127.0.0.1` | Caddy reverse-proxy target |
+| `5037` | `localhost` | host ADB server |
 
-### Change the password (terminal)
+Forwarding `7577` without the `49160-49167/UDP` relay range often produces a working webpage but a “cannot reach public relay” call failure. See [Ports and security](docs/PORTS.en.md).
 
-SSH into the NAS and run:
+## Existing Caddy/Nginx or a port conflict
+
+Bundled Caddy is enabled by default. If the host already owns `7577`, do not let two proxies compete for the same port:
 
 ```bash
-# Reset the login password
-docker exec nasany-sms /usr/local/bin/djonehub-macos \
-  -remote-reset-password "YOUR_NEW_PASSWORD" \
-  -remote-reset-password-file /var/lib/nasany/auth/password-hash
-
-# Reset the login username
-docker exec nasany-sms /usr/local/bin/djonehub-macos \
-  -remote-reset-username "YOUR_NEW_USERNAME" \
-  -remote-reset-username-file /var/lib/nasany/auth/username
+NASANY_SKIP_CADDY=1 bash deploy.sh your-domain.com you@example.com /dev/ttyUSB2
 ```
 
-> ⚠️ After resetting, **restart the container** (`docker compose restart nasany-sms`) for the new credentials to take effect.
+The script writes `caddy/Caddyfile`; integrate that site into the existing Caddy/Nginx configuration. Never expose `7576`, `7578`, or `5037` as a workaround.
 
----
+## Images and architecture
 
-## ⚙️ Module Setup
+| Host architecture | Docker Hub image |
+|---|---|
+| ARM64 / AArch64 | `mccdingding/nasany-sms:arm64` |
+| amd64 / x86_64 | `mccdingding/nasany-sms:amd64` |
 
-On connect, the gateway **configures the module automatically** — no manual AT commands needed:
+The script selects the matching image. Do not mix ARM64 and amd64 images. The runtime is distributed as a closed prebuilt image; this repository does not contain source code, Go caches, customer certificates, or build contexts.
 
-- ✅ **CLCC mode 0 only** — tracks only real voice calls
-- ✅ **ModemManager disabled** — the module's serial port is exclusively owned by the gateway
-- ✅ **USB composition query** — `AT+QCFG="USBCFG"` verifies the voice-capable profile
-- ✅ **PCM/DAI voice routing** — `AT+QPCMV` / `AT+QDAI` verified
-- ✅ **UAC + QDC507 audio** — module-side runtime pushed via ADB after reboot; voice route auto-started
+## Mobile use
 
-**First use with a matching module:** regardless of whether the NAS is ARM64 or x86_64, the module must be initialized once with ADB unlocked and the **ADB+UAC USB profile** enabled. This lets the gateway push the QDC507 voice runtime automatically after a module reboot. An initialized module does not need the write step on every deployment; the setup flow re-checks it if the module was factory-reset or its USB profile was lost.
+1. Open `https://your-domain:7577/remote/` in Safari or Chrome;
+2. log in and change the default password;
+3. on iPhone choose Share → **Add to Home Screen**; Android can install the PWA from the browser menu;
+4. before the first call, confirm the TURN port range is forwarded.
 
-**Required module environment:** enumerated as `/dev/ttyUSB2` · ModemManager disabled · SIM registered · TURN relay reachable
+## Troubleshooting
 
----
+- **No serial port:** run `bash deploy.sh --detect-tty` again and confirm the module USB connection and AT port;
+- **Webpage unavailable:** check `7577/TCP`, DNS, and Caddy logs;
+- **Webpage works but relay fails:** check `3478/UDP`, `49160-49167/UDP`, and preferably `5349/TCP` with valid certificates;
+- **Certificate issuance fails:** use a DuckDNS token and DNS-01 on home broadband instead of repeatedly retrying HTTP-01;
+- **ADB error:** the script should install and bind ADB to `localhost:5037`; check `systemctl status nasany-adb-server.service`;
+- **ModemManager owns the port:** the script disables it when systemd is available; otherwise confirm no other process has the TTY open.
 
-## 📱 Mobile install (iOS PWA)
+See [Troubleshooting](docs/TROUBLESHOOTING.en.md) for the full checklist.
 
-1. Open `https://your-domain:7577/remote/` in Safari
-2. Log in
-3. Share → **Add to Home Screen**
-4. Runs as a standalone full-screen PWA
+## Verification status
 
----
+This release candidate has passed clean ARM64 and amd64 acceptance: Docker Hub image pull, DNS-01 certificates, TURN TLS 5349, loopback host ADB, module bootstrap/voice runtime, and real phone/SMS end-to-end checks. The evidence summary is in [Dual-architecture verification](docs/VERIFICATION.en.md).
 
-## ❓ FAQ
+## License and acknowledgements
 
-<details>
-<summary><b>Why is it closed-source?</b></summary>
+The project is distributed as prebuilt Docker images. Personal self-hosted use is free; commercial resale, rebranding for sale, and redistribution of the images or their contents are prohibited. The authoritative terms are in [LICENSE](LICENSE).
 
-Upstream obligations (VoHive's "Changes and New Works License", libusb LGPL, MaVo reference) constrain how derivatives may be redistributed; we distribute images only.
-</details>
+Thanks to:
 
-<details>
-<summary><b>Does it work on x86_64?</b></summary>
+- [MacCellular](https://github.com/yuexiazhuojiu-byte/MacCellular), the earlier macOS SMS/phone gateway;
+- [VoHive / DJOneHub](https://github.com/iniwex5/vohive), the early USB/AT, eSIM, and modem-management foundation;
+- [MaVo](https://github.com/moluncn/mavo), the UAC and QDC507 audio-path reference;
+- Pion WebRTC, libusb, coturn, and the other runtime dependencies.
 
-Yes. Both **ARM64** and **x86_64** images are provided; the one-command script auto-detects your NAS architecture and pulls the matching image.
-</details>
-
-<details>
-<summary><b>Which modules are supported?</b></summary>
-
-DJI / BAIWANG modules with the QDC507 voice path (Quectel-compatible AT). The gateway auto-detects the module via USB AT or `/dev/ttyUSB2`.
-</details>
-
-<details>
-<summary><b>Can I sell this?</b></summary>
-
-No. The images are free for personal self-hosted use; commercial resale and redistribution are prohibited.
-</details>
-
----
-
-## 🙏 Acknowledgements
-
-- **MacCellular** ([github.com/yuexiazhuojiu-byte/MacCellular](https://github.com/yuexiazhuojiu-byte/MacCellular)) — the project this one descends from; the first open-source Mac SMS + phone gateway. Thanks to the author for the great work
-- **VoHive / DJOneHub** ([github.com/iniwex5/vohive](https://github.com/iniwex5/vohive)) — early USB/AT, eSIM, and modem-management foundation. `Required Notice: Copyright iniwex5`
-- **MaVo** ([github.com/moluncn/mavo](https://github.com/moluncn/mavo), MIT) — UAC probing and QDC507 audio-path reference
-- **Celldock** and similar public projects — technical reference
-- **Pion WebRTC** (MIT), **libusb** (LGPL-2.1), **coturn** — runtime dependencies
-
-Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-
----
-
-## 💖 Support
-
-If this project is useful to you, consider supporting its development:
-
-<div align="center">
-
-![Support](brand/support-qr.png)
-
-*Scan to support*
-
-</div>
+See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for complete notices.

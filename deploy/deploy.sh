@@ -2,6 +2,7 @@
 # ============================================================
 # NasAnySim one-click deploy
 # Usage: bash deploy.sh [domain] [email] [serial-port] [--dry-run]
+#   bash deploy.sh --detect-tty
 #   bash deploy.sh nasany.example.com you@example.com
 #   bash deploy.sh nasany.example.com you@example.com /dev/ttyACM0
 #   bash deploy.sh nasany.example.com --dry-run  (config only)
@@ -18,6 +19,72 @@ set -euo pipefail
 # .env can set NASANY_DOMAIN, NASANY_EMAIL, NASANY_TTY, NASANY_DUCKDNS_TOKEN
 if [[ -f .env ]]; then
   set -a; source .env; set +a
+fi
+
+detect_tty() {
+  local arch port info vendor model path found=0 recommended=""
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$arch" in
+    x86_64|amd64) arch_label="amd64" ;;
+    aarch64|arm64) arch_label="arm64" ;;
+    *) arch_label="$arch" ;;
+  esac
+  echo "NasAnySim hardware check"
+  echo "  Host architecture: $arch_label ($arch)"
+  echo "  USB module candidates:"
+  for port in /dev/ttyUSB* /dev/ttyACM*; do
+    [[ -e "$port" ]] || continue
+    found=1
+    info=""
+    if command -v udevadm >/dev/null 2>&1; then
+      info="$(udevadm info --query=property --name="$port" 2>/dev/null || true)"
+    fi
+    vendor="$(printf '%s\n' "$info" | awk -F= '$1 == "ID_VENDOR_ID" {print $2; exit}')"
+    model="$(printf '%s\n' "$info" | awk -F= '$1 == "ID_MODEL_ID" {print $2; exit}')"
+    path="$(printf '%s\n' "$info" | awk -F= '$1 == "ID_PATH" {print $2; exit}')"
+    printf '    %-16s VID:PID=%s:%s' "$port" "${vendor:-unknown}" "${model:-unknown}"
+    [[ -n "$path" ]] && printf '  path=%s' "$path"
+    printf '\n'
+    [[ -z "$recommended" ]] && recommended="$port"
+    [[ "$port" == "/dev/ttyUSB2" ]] && recommended="$port"
+  done
+  if [[ "$found" -eq 0 ]]; then
+    echo "    (no ttyUSB/ttyACM device found)"
+  fi
+  if command -v lsusb >/dev/null 2>&1; then
+    echo "  Matching USB devices (2c7c:0125 / Quectel-compatible):"
+    lsusb 2>/dev/null | grep -iE '2c7c|0125|quectel|baiwang' || echo "    (none reported by lsusb)"
+  fi
+  echo "  ALSA capture devices:"
+  if command -v arecord >/dev/null 2>&1; then
+    arecord -l 2>/dev/null || echo "    (none or permission denied)"
+  else
+    echo "    arecord not installed"
+  fi
+  echo "  ALSA playback devices:"
+  if command -v aplay >/dev/null 2>&1; then
+    aplay -l 2>/dev/null || echo "    (none or permission denied)"
+  else
+    echo "    aplay not installed"
+  fi
+  echo "  Host ADB transports:"
+  if command -v adb >/dev/null 2>&1; then
+    adb -L tcp:localhost:5037 devices -l 2>/dev/null || true
+  else
+    echo "    adb not installed yet (deploy.sh installs it when supported)"
+  fi
+  echo ""
+  if [[ -n "$recommended" ]]; then
+    echo "Recommended serial candidate: $recommended"
+    echo "Next: bash deploy.sh <domain> <email> $recommended"
+  else
+    echo "No serial candidate found. Connect the module and run this check again."
+  fi
+}
+
+if [[ "${1:-}" == "--detect-tty" ]]; then
+  detect_tty
+  exit 0
 fi
 
 DOMAIN="${1:-${NASANY_DOMAIN:-}}"
@@ -38,6 +105,102 @@ if [[ -z "$DOMAIN" ]]; then
   echo "  or set NASANY_DOMAIN env var"
   exit 1
 fi
+
+run_as_root() {
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    echo "ERROR: root privileges are required for host ADB/ModemManager setup (sudo not found)." >&2
+    return 1
+  fi
+}
+
+ensure_host_adb() {
+  if ! command -v adb >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+      echo "HOST: installing android-tools-adb"
+      run_as_root apt-get update
+      run_as_root apt-get install -y android-tools-adb
+    elif command -v dnf >/dev/null 2>&1; then
+      echo "HOST: installing android-tools"
+      run_as_root dnf install -y android-tools
+    else
+      echo "ERROR: install android-tools-adb (or android-tools) is required; no supported package manager found." >&2
+      return 1
+    fi
+  fi
+  local adb_path
+  adb_path="$(command -v adb)"
+  if [[ ! -x "$adb_path" ]]; then
+    echo "ERROR: adb was not installed as an executable." >&2
+    return 1
+  fi
+
+  # Replace any pre-existing server so the binding below is authoritative.
+  "$adb_path" -L tcp:localhost:5037 kill-server >/dev/null 2>&1 || true
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    local unit_tmp
+    unit_tmp="$(mktemp)"
+    printf '%s\n' \
+      '[Unit]' \
+      'Description=NasAnySim private host ADB server' \
+      'After=network-online.target' \
+      'Wants=network-online.target' \
+      '' \
+      '[Service]' \
+      'Type=simple' \
+      "ExecStart=${adb_path} -L tcp:localhost:5037 nodaemon server" \
+      'Restart=on-failure' \
+      'RestartSec=2' \
+      '' \
+      '[Install]' \
+      'WantedBy=multi-user.target' > "$unit_tmp"
+    run_as_root install -o root -g root -m 0644 "$unit_tmp" /etc/systemd/system/nasany-adb-server.service
+    rm -f "$unit_tmp"
+    run_as_root systemctl daemon-reload
+    run_as_root systemctl enable --now nasany-adb-server.service
+  else
+    # Non-systemd Linux still gets a private server for this deployment. A
+    # systemd host is required for reboot persistence and is verified below.
+    "$adb_path" -L tcp:localhost:5037 start-server >/tmp/nasany-adb-server.log 2>&1
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    local bindings ready=0
+    # adb's first start (key generation) can take a few seconds after systemd
+    # reports the unit as active — poll instead of failing immediately.
+    for _ in $(seq 1 30); do
+      bindings="$(ss -lntH 2>/dev/null | awk '$1 == "LISTEN" {print $4}')"
+      if printf '%s\n' "$bindings" | grep -qE '(^|[[:space:]])(0\.0\.0\.0|\*|:::):5037$'; then
+        echo "ERROR: ADB server is listening beyond loopback; refusing to continue." >&2
+        return 1
+      fi
+      if printf '%s\n' "$bindings" | grep -qE '(^|[[:space:]])(127\.0\.0\.1|\[::1\]):5037$'; then
+        ready=1
+        break
+      fi
+      sleep 0.5
+    done
+    if [[ "$ready" -ne 1 ]]; then
+      echo "ERROR: loopback ADB server did not become ready on 127.0.0.1:5037." >&2
+      return 1
+    fi
+  fi
+  echo "HOST: ADB server ready on loopback 127.0.0.1:5037"
+}
+
+stop_modem_manager() {
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files ModemManager.service >/dev/null 2>&1; then
+    if systemctl is-active --quiet ModemManager.service; then
+      echo "HOST: stopping ModemManager to release ${TTY}"
+    fi
+    run_as_root systemctl disable --now ModemManager.service >/dev/null 2>&1 || {
+      echo "ERROR: could not stop ModemManager; it may keep ${TTY} busy." >&2
+      return 1
+    }
+  fi
+}
 
 # Check docker
 if [[ "$DRY_RUN" -eq 0 ]] && ! command -v docker >/dev/null 2>&1; then
@@ -62,6 +225,11 @@ TURN_SECRET="${TURN_SECRET%%$'\n'}"
 
 # TURN config (coturn.conf)
 mkdir -p coturn
+# coturn runs unprivileged inside the container: both the directory and the
+# generated config must be traversable/readable by nobody, regardless of the
+# deploy shell's umask (some hosts default to 077, which silently degrades
+# coturn to an empty default config with no TLS listener).
+chmod 755 coturn
 TURN_IP="$(ip -4 addr show 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d/ -f1 | grep -v '^127\.' | head -1 || true)"
 # Public IP for the TURN relay candidate (external-ip). Prefer NASANY_PUBLIC_IP
 # (user-provided), else resolve from the domain via AUTHORITATIVE DNS (skips a
@@ -102,6 +270,15 @@ if [[ ! -f data/auth/session-secret ]]; then
   chmod 600 data/auth/session-secret
 fi
 
+# One-shot Linux module bootstrap capability. It is mounted read-only into the
+# container and never printed; the backend refuses bootstrap without it.
+if [[ ! -f data/auth/module-bootstrap-token ]]; then
+  echo "GEN: data/auth/module-bootstrap-token"
+  openssl rand -hex 32 > data/auth/module-bootstrap-token
+  chmod 600 data/auth/module-bootstrap-token
+fi
+chmod 600 data/auth/module-bootstrap-token
+
 # VAPID private key for Web Push (-remote-push). Without it the gateway refuses
 # to start (log.Fatal), so generate a P-256 key on first run.
 # Format: 43-char base64url (no padding), P-256 private key scalar.
@@ -122,13 +299,21 @@ echo "DOMAIN: $DOMAIN"
 #   1) user-provided certs in ./caddy/{fullchain,privkey}.pem  -> use them
 #   2) port 80 publicly reachable (cloud/VPS)                   -> Let's Encrypt HTTP-01
 #   3) port 80 blocked (home broadband) + DuckDNS token         -> acme.sh DNS-01
-#   4) otherwise                                                -> self-signed (works anyway)
+#   4) otherwise                                                -> fail with the
+#                                                                  required next step
 TLS_LINE=""
 
 # (1) User-provided certs first.
 if [[ -f caddy/fullchain.pem && -f caddy/privkey.pem ]]; then
   TLS_LINE="tls /etc/caddy/fullchain.pem /etc/caddy/privkey.pem"
   echo "TLS: using your certs (./caddy/fullchain.pem + privkey.pem)"
+  # Also give the certs to coturn so TURN can serve TLS on 5349 (home routers
+  # commonly forward TCP 5349 but not UDP 3478). coturn runs unprivileged
+  # inside the container, so the private key MUST be world-readable (0644).
+  mkdir -p coturn
+  cp caddy/fullchain.pem coturn/fullchain.pem
+  cp caddy/privkey.pem coturn/privkey.pem
+  chmod 644 coturn/privkey.pem coturn/fullchain.pem
 fi
 
 # (2) DuckDNS token → DNS-01. This works on EVERY network (home broadband with
@@ -136,11 +321,19 @@ fi
 # use it; otherwise the script simply ASKS for it — the user only ever runs
 # `bash deploy.sh domain email` and pastes the token when prompted.
 if [[ -z "${TLS_LINE:-}" && -z "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
+  DUCK_INPUT=""
   if [[ "$DRY_RUN" -eq 0 ]]; then
     echo ""
     echo "DuckDNS is the easiest way to get a real HTTPS cert on home broadband"
     echo "(port 80 is usually blocked by ISPs — HTTP-01 won't work)."
-    read -r -p "Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip): " DUCK_INPUT
+    # Only prompt on an interactive terminal. Non-interactive runs (SSH
+    # without a TTY, CI, cron) must not die on read EOF: they fall through
+    # to the HTTP-01 / auto-cert path below.
+    if [[ -t 0 ]]; then
+      read -r -p "Enter your DuckDNS token from https://www.duckdns.org (or press Enter to skip): " DUCK_INPUT
+    else
+      echo "NOTE: no interactive terminal — skipping DuckDNS prompt and trying HTTP-01."
+    fi
     NASANY_DUCKDNS_TOKEN="${NASANY_DUCKDNS_TOKEN:-$DUCK_INPUT}"
   fi
 fi
@@ -184,7 +377,18 @@ if [[ -z "${TLS_LINE:-}" && -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
   else
     echo "TLS: acme.sh is not installed — install it now to auto-issue the cert."
     if [[ "$DRY_RUN" -eq 0 ]]; then
-      read -r -p "Install acme.sh now? (y/N): " ACME_INSTALL
+      if [[ -t 0 ]]; then
+        read -r -p "Install acme.sh now? (y/N): " ACME_INSTALL
+      else
+        # Non-interactive: with a DuckDNS token already provided, DNS-01 is
+        # the intended cert path, so install acme.sh automatically instead of
+        # abandoning the only working route.
+        if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" ]]; then
+          ACME_INSTALL="y"
+        else
+          ACME_INSTALL="n"
+        fi
+      fi
       if [[ "${ACME_INSTALL,,}" == "y" ]]; then
         echo "TLS: downloading and installing acme.sh ..."
         # NB: acme.sh's installer can return non-zero on some platforms even
@@ -282,6 +486,7 @@ denied-peer-ip=224.0.0.0-255.255.255.255
 log-file=stdout
 simple-log
 EOF
+chmod 644 coturn/turnserver.conf
 echo "OK: coturn/turnserver.conf (external-ip=${PUBLIC_IP})${TLS_BLOCK:+ TLS5349=on}"
 
 # (3) No token, no user certs → try HTTP-01 (works on cloud/VPS where port 80
@@ -306,6 +511,11 @@ if [[ -z "${TLS_LINE:-}" ]]; then
 fi
 
 # (4) No real cert obtained → fail loudly. No self-signed fallback.
+# Dry-run only needs a syntactically valid Caddyfile and never starts Caddy.
+if [[ -z "${TLS_LINE:-}" && "$DRY_RUN" -eq 1 ]]; then
+  TLS_LINE="tls internal"
+  echo "TLS: dry-run only — using tls internal in the non-started preview config"
+fi
 if [[ -z "${TLS_LINE:-}" ]]; then
   echo "ERROR: could not obtain a real HTTPS certificate."
   echo "  On home broadband (port 80 blocked) you MUST provide a DuckDNS token:"
@@ -366,10 +576,8 @@ echo "OK: caddy/Caddyfile"
 # explains how to integrate with an existing proxy. Set NASANY_SKIP_CADDY=1 to
 # explicitly exclude it.
 CADDY_START="true"
-CADDY_PROFILE='["default"]'
 if [[ "${NASANY_SKIP_CADDY:-0}" == "1" ]]; then
   CADDY_START="false"
-  CADDY_PROFILE='["optional"]'
   echo "NOTE: NASANY_SKIP_CADDY=1 — skipping the bundled caddy container."
 elif command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE ':(7577)\b'; then
   echo "WARN: port 7577 already in use. The bundled caddy container may not be"
@@ -381,14 +589,25 @@ elif command -v netstat >/dev/null 2>&1 && netstat -tln 2>/dev/null | grep -qE '
   echo "      site block from ./caddy/Caddyfile and set NASANY_SKIP_CADDY=1."
 fi
 # Detect host architecture → choose the matching image tag.
-# arm64 (most NAS) → :latest (arm64); x86_64 → :amd64.
 ARCH="$(uname -m 2>/dev/null || echo unknown)"
-if [[ "$ARCH" == "x86_64" || "$ARCH" == "amd64" ]]; then
-  NASANY_IMAGE="mccdingding/nasany-sms:amd64"
-  echo "ARCH: x86_64 (amd64) — using amd64 image"
-else
-  NASANY_IMAGE="mccdingding/nasany-sms:latest"
-  echo "ARCH: $ARCH — using arm64 image"
+case "$ARCH" in
+  x86_64|amd64)
+    NASANY_IMAGE="mccdingding/nasany-sms:amd64"
+    echo "ARCH: x86_64 (amd64) — using amd64 image"
+    ;;
+  aarch64|arm64)
+    NASANY_IMAGE="mccdingding/nasany-sms:arm64"
+    echo "ARCH: aarch64 (arm64) — using arm64 image"
+    ;;
+  *)
+    echo "ERROR: unsupported host architecture: $ARCH (supported: amd64, arm64)" >&2
+    exit 1
+    ;;
+esac
+
+CADDY_PROFILE_LINE=""
+if [[ "$CADDY_START" != "true" ]]; then
+  CADDY_PROFILE_LINE='    profiles: ["optional"]'
 fi
 
 cat > docker-compose.yaml <<EOF
@@ -404,6 +623,7 @@ services:
     volumes:
       - ./data:/var/lib/nasany
       - ./turn-secret:/run/secrets/turn-secret:ro
+      - ./data/auth/module-bootstrap-token:/run/secrets/module-bootstrap-token:ro
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     command:
@@ -449,6 +669,8 @@ services:
       - -remote-push-subscriptions-file
       - /var/lib/nasany/push/subscriptions.json
       - -web-console
+      - -module-bootstrap-token-file
+      - /run/secrets/module-bootstrap-token
 
   nasany-turn:
     image: coturn/coturn:latest
@@ -462,6 +684,7 @@ services:
       - NET_BIND_SERVICE
 
   caddy:
+${CADDY_PROFILE_LINE}
     image: caddy:2-alpine
     container_name: nasany-caddy
     restart: unless-stopped
@@ -469,7 +692,7 @@ services:
     volumes:
       - ./caddy:/etc/caddy
       - caddy_data:/data
-    # Admin API disabled via `admin off` in the Caddyfile (avoids :2019 clashes).
+    # Admin API disabled via admin off in the Caddyfile (avoids :2019 clashes).
     command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
 
 volumes:
@@ -480,7 +703,7 @@ echo "OK: docker-compose.yaml"
 # DuckDNS IP auto-update (home broadband: IP changes, domain must follow).
 # Only when a token + domain are provided. Uses DuckDNS's free HTTP API:
 #   https://www.duckdns.org/update?domains=<d>&token=<t>&ip=   (ip empty = auto)
-if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" && -n "$DOMAIN" ]]; then
+if [[ "$DRY_RUN" -eq 0 && -n "${NASANY_DUCKDNS_TOKEN:-}" && "$DOMAIN" == *.duckdns.org ]]; then
   NOREDIR_D=''
   if [[ "$DOMAIN" == *".duckdns.org" ]]; then NOREDIR_D="${DOMAIN%.duckdns.org}"; else NOREDIR_D="$DOMAIN"; fi
   # Preferred: leave ip= empty → DuckDNS detects this host's real public IP
@@ -498,15 +721,21 @@ if [[ -n "${NASANY_DUCKDNS_TOKEN:-}" && -n "$DOMAIN" ]]; then
 # (standard dynamic-IP behaviour), unless a fixed public IP was baked in.
 curl -fsS --max-time 15 "${UPDATE_URL}" >> /var/log/duckdns-update.log 2>&1 || true
 EOF
-  chmod +x duckdns-update.sh
+  # The generated file contains the DuckDNS token in its private URL. Keep
+  # the updater executable only by the deployment owner; never commit it.
+  chmod 700 duckdns-update.sh
   echo "OK: duckdns-update.sh (${NOREDIR_D}.duckdns.org)"
 
   # Install a 5-minute cron if not already present (DuckDNS recommends <=5min).
-  if ! crontab -l 2>/dev/null | grep -q "duckdns-update"; then
-    ( crontab -l 2>/dev/null; echo "*/5 * * * * $(pwd)/duckdns-update.sh >/dev/null 2>&1" ) | crontab -
-    echo "OK: installed 5-min cron for DuckDNS IP update"
+  if command -v crontab >/dev/null 2>&1; then
+    if ! crontab -l 2>/dev/null | grep -q "duckdns-update"; then
+      ( crontab -l 2>/dev/null; echo "*/5 * * * * $(pwd)/duckdns-update.sh >/dev/null 2>&1" ) | crontab -
+      echo "OK: installed 5-min cron for DuckDNS IP update"
+    else
+      echo "NOTE: DuckDNS cron already installed"
+    fi
   else
-    echo "NOTE: DuckDNS cron already installed"
+    echo "WARN: crontab is unavailable; run ./duckdns-update.sh from a scheduler you control."
   fi
 fi
 
@@ -521,17 +750,56 @@ fi
 
 echo ""
 echo "Starting..."
+stop_modem_manager
+ensure_host_adb
 docker compose up -d
+# turnserver.conf is regenerated on every run and bind-mounted into the
+# container, so force-recreate guarantees a changed TLS/relay configuration
+# (e.g. certs just appeared in ./coturn) actually takes effect.
+docker compose up -d --force-recreate nasany-turn
+
+# The container must be healthy before the one-shot module bootstrap. A
+# successful `docker compose up` alone is not an acceptance signal.
+BACKEND_READY=0
+for _ in $(seq 1 90); do
+  if curl -fsS --max-time 3 http://127.0.0.1:7576/api/platform >/dev/null 2>&1; then
+    BACKEND_READY=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$BACKEND_READY" -ne 1 ]]; then
+  echo "ERROR: nasany backend did not become ready on 127.0.0.1:7576." >&2
+  exit 1
+fi
+
+# The module ADB/voice runtime can take a few seconds to settle after the
+# container starts, so a 409/not-ready bootstrap is retried before failing.
+BOOTSTRAP_OK=0
+for attempt in 1 2 3 4 5 6; do
+  BOOTSTRAP_TOKEN="$(< data/auth/module-bootstrap-token)"
+  BOOTSTRAP_JSON=""
+  if BOOTSTRAP_JSON="$(curl -fsS --max-time 120 -X POST \
+      -H "X-NasAny-Bootstrap-Token: ${BOOTSTRAP_TOKEN}" \
+      http://127.0.0.1:7576/api/module/bootstrap)" \
+     && printf '%s' "$BOOTSTRAP_JSON" | grep -qiE '"ready"[[:space:]]*:[[:space:]]*true'; then
+    BOOTSTRAP_OK=1
+    break
+  fi
+  echo "NOTE: module bootstrap attempt ${attempt} not ready yet; retrying in 5s..." >&2
+  unset BOOTSTRAP_TOKEN BOOTSTRAP_JSON
+  sleep 5
+done
+unset BOOTSTRAP_TOKEN BOOTSTRAP_JSON
+if [[ "$BOOTSTRAP_OK" -ne 1 ]]; then
+  echo "ERROR: Linux module bootstrap did not reach ready=true after retries; deployment is not accepted." >&2
+  exit 1
+fi
+
 echo ""
 echo "=============================================="
-echo "Done! Access: https://${DOMAIN}:7577/remote/"
+echo "Done: host ADB/UAC, module runtime, and backend readiness verified."
+echo "Access: https://${DOMAIN}:7577/remote/"
 echo "Default login: admin / admin"
 echo "IMPORTANT: change the password after first login!"
-echo ""
-echo "ROUTER PORT-FORWARDING REMINDER (to this host's LAN IP):"
-echo "  TCP 7577          HTTPS PWA (required)"
-echo "  UDP 3478          TURN relay (required for calls)"
-echo "  UDP 49160-49167   TURN audio relay range (required for calls)"
-echo "  TCP 5349          TURN TLS (optional when enabled by the generated config)"
-echo "  Do NOT expose loopback-only ports 7576 or 7578."
 echo "=============================================="

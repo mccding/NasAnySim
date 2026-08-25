@@ -1,0 +1,32 @@
+.DS_Store
+._*
+
+# Local deployment output
+data/
+caddy/
+coturn/
+docker-compose.yaml
+turn-secret
+duckdns-update.sh
+*.log
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.csr
+*.crt
+*.p12
+*.jks
+
+# Build and test output
+/dist/
+/bin/
+*.test
+*.out
+.cache/
+**/.build/
+**/.gradle/
+node_modules/
